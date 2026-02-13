@@ -1,52 +1,27 @@
 <?php
 /**
- * 👑 PROJECT: KN BALLAS ULTIMATE EMPIRE
+ * 👑 PROJECT: KN BALLAS CAT EDITION (V5000)
  * 👤 BOSS: KN (ANH NGUYEN)
- * 🛰️ MODULE: API SERVER + FULL LUA AUTOWALK + KEY MANAGER (IP LOCK)
+ * 🛰️ MODULE: MASTER KEY + CAT BIO + FULL LUA AUTOWALK
  */
 
 session_start();
 error_reporting(0);
 date_default_timezone_set('Asia/Ho_Chi_Minh');
-$DB = "kn_database.txt";
-$ADMIN_PASS = "Anhnguyendz_99";
-if (!file_exists($DB)) touch($DB);
 
-// =========================================================
-// 🛰️ [1] API - TRẢ VỀ CODE LUA AUTOWALK KHI ĐÚNG KEY
-// =========================================================
+// CẤU HÌNH DUY NHẤT
+$MASTER_KEY = "Anhnguyendz_99"; 
+$LOG_FILE = "kn_ip_logs.txt"; 
+
 if (isset($_GET['check_key'])) {
     $k = trim($_GET['check_key']);
-    $ip = $_SERVER['REMOTE_ADDR']; // Lấy IP người dùng
-    $auth = "NOT_FOUND";
-    
-    $rows = file($DB, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    $updated = [];
-    foreach ($rows as $r) {
-        $d = explode("|", $r); // 0:Key | 1:Expiry | 2:IP
-        if ($d[0] === $k) {
-            // Check thời hạn
-            if (date("Y-m-d") > $d[1]) { 
-                $auth = "EXPIRED"; 
-            } 
-            // Check IP (Anti-Share) - Nếu đã có IP mà không trùng với IP hiện tại
-            elseif ($d[2] !== "NONE" && $d[2] !== $ip) { 
-                $auth = "IP_BLOCKED (ANTI-SHARE)"; 
-            } 
-            else {
-                if ($d[2] === "NONE") $d[2] = $ip; // Khóa IP lần đầu sử dụng
-                $auth = "AUTH_SUCCESS";
-            }
-        }
-        $updated[] = implode("|", $d);
-    }
-    file_put_contents($DB, implode("\n", $updated));
-
+    $ip = $_SERVER['REMOTE_ADDR'];
+    if ($k !== $MASTER_KEY) { die("NOT_FOUND"); }
+    file_put_contents($LOG_FILE, $ip . " | " . date("H:i:s d/m/Y") . "\n", FILE_APPEND);
     header('Content-Type: text/plain');
-    if ($auth === "AUTH_SUCCESS") {
-        echo "AUTH_SUCCESS|"; 
-        // --- ĐÂY LÀ CODE AUTOWALK CỦA MÀY ---
+    echo "AUTH_SUCCESS|"; 
 ?>
+-- [[ CODE AUTOWALK CỦA BOSS KN ]]
 script_name("AutoWalk AutoY")
 script_author("KN_BOSS")
 require "lib.moonloader"
@@ -66,173 +41,106 @@ function sendY()
     freeMemory(memPtr)
 end
 
-local function walk(p)
-    local x,y,z=getCharCoordinates(PLAYER_PED)
-    local dx=p[1]-x
-    local dy=p[2]-y
-    local dist=math.sqrt(dx*dx+dy*dy)
-    if dist>1.2 then
-        local heading=math.deg(math.atan2(-dx,dy))
-        setCharHeading(PLAYER_PED,heading)
-        setGameKeyState(1,255)
-        return false
-    else
-        setGameKeyState(1,0)
-        return true
-    end
-end
-
-imgui.OnFrame(function() return show[0] end,
-function()
-    imgui.Begin("AutoWalk AutoY", show)
-    imgui.Text("Points: "..#points)
-    if imgui.Button("Add Point") then
-        local x,y,z=getCharCoordinates(PLAYER_PED)
-        table.insert(points,{x,y,z})
-    end
-    if imgui.Button("START") then if #points>0 then running=true; idx=1 end end
-    if imgui.Button("STOP") then running=false; setGameKeyState(1,0) end
-    if imgui.Button("CLEAR") then points={} end
-    imgui.End()
-end)
-
 function main()
     repeat wait(0) until isSampAvailable()
     while true do
         wait(0)
         if running and #points>0 then
             local p=points[idx]
-            if walk(p) then
+            local x,y,z=getCharCoordinates(PLAYER_PED)
+            local dx,dy = p[1]-x, p[2]-y
+            if math.sqrt(dx*dx+dy*dy)>1.2 then
+                setCharHeading(PLAYER_PED, math.deg(math.atan2(-dx,dy)))
+                setGameKeyState(1,255)
+            else
+                setGameKeyState(1,0)
                 local t=os.clock()
                 while os.clock()-t < spamTime/1000 do sendY(); wait(120) end
-                idx = idx + 1
-                if idx > #points then idx = 1 end
+                idx = (idx % #points) + 1
             end
         end
     end
 end
-<?php
-    } else {
-        echo $auth;
-    }
-    exit;
-}
+<?php exit; } ?>
 
-// =========================================================
-// 🎨 [2] GIAO DIỆN WEB & QUẢN LÝ (CHO BOSS KN)
-// =========================================================
-?>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>KN BOSS | SYSTEM V2500</title>
+    <title>KN BOSS | CAT SYSTEM</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root { --p: #00ffd5; --s: #ff00c1; }
-        * { margin:0; padding:0; box-sizing:border-box; font-family: sans-serif; cursor: none; }
+        * { margin:0; padding:0; box-sizing:border-box; font-family: 'Lexend', sans-serif; cursor: none; }
         body { background: #000; height: 100vh; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        canvas { position: fixed; inset: 0; z-index: -1; }
         #bg-v { position: fixed; inset: 0; min-width: 100%; min-height: 100%; z-index: -2; object-fit: cover; filter: brightness(0.2); }
-        .glass { width: 450px; padding: 40px; border-radius: 40px; background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(30px); border: 1px solid var(--p); text-align: center; box-shadow: 0 0 30px rgba(0,255,213,0.2); position: relative; }
-        input { width: 100%; padding: 15px; background: rgba(0,0,0,0.8); border: 1px solid #333; border-radius: 12px; color: var(--p); text-align: center; margin: 10px 0; outline: none; }
-        .btn { width: 100%; padding: 16px; border-radius: 12px; border: none; background: linear-gradient(45deg, var(--p), var(--s)); color: #000; font-weight: 900; cursor: pointer; text-transform: uppercase; margin-top: 10px; }
-        .btn-admin { position: absolute; bottom: 15px; right: 15px; color: #111; cursor: pointer; }
-        table { width: 100%; font-size: 11px; margin-top: 20px; border-collapse: collapse; color: #fff; }
-        th, td { border: 1px solid #222; padding: 8px; text-align: center; }
+        .glass { width: 380px; padding: 40px; border-radius: 40px; background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(25px); border: 1px solid var(--p); text-align: center; position: relative; box-shadow: 0 0 40px rgba(0,255,213,0.2); }
+        .glitch { font-size: 30px; font-weight: 900; color: #fff; text-transform: uppercase; letter-spacing: 5px; text-shadow: 2px 2px var(--s); }
+        input { width: 100%; padding: 15px; background: rgba(0,0,0,0.8); border: 1px solid #222; border-radius: 12px; color: var(--p); text-align: center; margin: 20px 0; outline: none; border-left: 5px solid var(--p); }
+        .btn { width: 100%; padding: 16px; border-radius: 12px; border: none; background: linear-gradient(45deg, var(--p), var(--s)); color: #000; font-weight: 900; cursor: pointer; transition: 0.3s; }
+        .btn:hover { transform: scale(1.05); box-shadow: 0 0 20px var(--p); }
         #cur { width: 10px; height: 10px; background: var(--p); border-radius: 50%; position: fixed; pointer-events: none; z-index: 10000; box-shadow: 0 0 10px var(--p); }
+        .avatar { width: 120px; height: 120px; border-radius: 50%; border: 3px solid var(--p); padding: 5px; margin-bottom: 15px; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0,255,213,0.4); } 70% { box-shadow: 0 0 0 20px rgba(0,255,213,0); } 100% { box-shadow: 0 0 0 0 rgba(0,255,213,0); } }
     </style>
 </head>
 <body>
     <div id="cur"></div>
+    <canvas id="snow"></canvas>
     <video id="bg-v" autoplay loop muted playsinline><source src="bg.mp4" type="video/mp4"></video>
+    <audio id="bg-m" loop src="myhome.mp3"></audio>
 
     <div class="glass">
         <div id="login-ui">
-            <h1 style="letter-spacing: 5px; color: #fff;">KN BALLAS</h1>
-            <p style="font-size: 10px; color: var(--p); margin-bottom: 20px;">KEY AUTHENTICATION SYSTEM</p>
-            <input type="text" id="k" placeholder="VUI LÒNG NHẬP KEY...">
-            <button class="btn" onclick="verify()">TRUY CẬP</button>
-            <p id="stt" style="color:var(--s); font-size: 12px; margin-top: 10px;"></p>
+            <div class="glitch">KN BALLAS</div>
+            <p style="font-size: 10px; color: var(--p); opacity: 0.6; margin-top: 5px;">MASTER AUTHENTICATION</p>
+            <input type="password" id="mk" placeholder="NHẬP MASTER KEY...">
+            <button class="btn" onclick="go()">UNLOCK SYSTEM</button>
         </div>
 
-        <div id="admin-ui" style="display:none;">
-            <h2 style="color:var(--p)">QUẢN LÝ KEY</h2>
-            <form method="POST">
-                <input type="text" name="kn" placeholder="Tên Key" required>
-                <input type="number" name="kd" placeholder="Số ngày (Cộng '+' / Trừ '-')" required>
-                <button class="btn" name="set">CẬP NHẬT / TẠO KEY</button>
-                <button class="btn" name="reset_ip" style="background: #333; color: #fff;">RESET IP TOÀN BỘ KEY</button>
-            </form>
-            <div style="max-height: 200px; overflow-y: auto; margin-top: 20px; background: #000; border: 1px solid #222;">
-                <table>
-                    <thead><tr><th>KEY</th><th>HẠN</th><th>IP GỐC</th></tr></thead>
-                    <tbody>
-                        <?php
-                        $rows = file($DB, FILE_IGNORE_NEW_LINES);
-                        foreach($rows as $r) {
-                            $d = explode("|", $r);
-                            $color = (date("Y-m-d") > $d[1]) ? "red" : "#00ffd5";
-                            echo "<tr><td>$d[0]</td><td style='color:$color'>$d[1]</td><td>$d[2]</td></tr>";
-                        }
-                        ?>
-                    </tbody>
-                </table>
+        <div id="bio-ui" style="display:none;">
+            <img src="https://i.ibb.co/ynM5RCLc/avatar.jpg" class="avatar">
+            <h2 style="color:#fff; letter-spacing: 2px;">BOSS KN</h2>
+            <p style="font-size: 10px; color: var(--p); letter-spacing: 5px;">ACCESS GRANTED</p>
+            <div style="margin-top:25px; display:flex; justify-content:center; gap:25px; font-size: 22px; color: #fff;">
+                <i class="fab fa-discord"></i> <i class="fab fa-youtube"></i> <i class="fab fa-spotify"></i>
             </div>
-            <button class="btn" onclick="location.reload()" style="background:none; border: 1px solid #333; color:#555; margin-top:10px;">THOÁT ADMIN</button>
+            <p style="margin-top:20px; font-size: 11px; color: #555;">Status: Online & Working</p>
         </div>
-
-        <div class="btn-admin" onclick="openAdmin()"><i class="fas fa-key"></i></div>
     </div>
 
     <script>
         document.onmousemove = (e) => { const c=document.getElementById('cur'); c.style.left=e.clientX+'px'; c.style.top=e.clientY+'px'; }
         
-        function openAdmin() {
-            let p = prompt("PASSWORD CHỦ (BOSS):");
-            if(p === "<?php echo $ADMIN_PASS; ?>") {
-                document.getElementById('login-ui').style.display='none';
-                document.getElementById('admin-ui').style.display='block';
-            }
+        async function go() {
+            const key = document.getElementById('mk').value;
+            if (key === "<?php echo $MASTER_KEY; ?>") {
+                document.getElementById('login-ui').style.display = 'none';
+                document.getElementById('bio-ui').style.display = 'block';
+                document.getElementById('bg-m').play();
+            } else { alert("SAI KEY RỒI THẰNG LỒN!"); }
         }
 
-        async function verify() {
-            const key = document.getElementById('k').value;
-            const r = await fetch(`index.php?check_key=${key}`);
-            const t = await r.text();
-            if(t.includes("AUTH_SUCCESS")) alert("CHÚC MỪNG! KEY CHUẨN.");
-            else document.getElementById('stt').innerText = "LỖI: " + t;
+        // Hiệu ứng hạt tuyết cho đẹp
+        const canvas = document.getElementById('snow');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+        function create() {
+            for(let i=0; i<50; i++) particles.push({x:Math.random()*canvas.width, y:Math.random()*canvas.height, r:Math.random()*2+1, d:Math.random()*1});
         }
+        function draw() {
+            ctx.clearRect(0,0,canvas.width, canvas.height);
+            ctx.fillStyle = "rgba(0, 255, 213, 0.3)";
+            ctx.beginPath();
+            for(let p of particles) {
+                ctx.moveTo(p.x, p.y); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+                p.y += p.d; if(p.y > canvas.height) p.y = -10;
+            }
+            ctx.fill(); requestAnimationFrame(draw);
+        }
+        create(); draw();
     </script>
-
-    <?php
-    // LOGIC CỘNG/TRỪ HẠN & TẠO KEY
-    if(isset($_POST['set'])) {
-        $n = trim($_POST['kn']); $d = (int)$_POST['kd'];
-        $rows = file($DB, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-        $up = []; $f = false;
-        foreach($rows as $r) {
-            $x = explode("|", $r);
-            if($x[0] === $n) { 
-                $f = true; 
-                $base_date = (date("Y-m-d") > $x[1]) ? date("Y-m-d") : $x[1];
-                $x[1] = date('Y-m-d', strtotime($base_date . " $d days")); 
-            }
-            $up[] = implode("|", $x);
-        }
-        if(!$f) $up[] = "$n|".date('Y-m-d', strtotime("+$d days"))."|NONE";
-        file_put_contents($DB, implode("\n", $up));
-        header("Location: index.php");
-    }
-
-    // LOGIC RESET IP (CHO PHÉP KHÁCH DÙNG IP MỚI)
-    if(isset($_POST['reset_ip'])) {
-        $rows = file($DB, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-        $up = array_map(function($r){
-            $x = explode("|", $r); $x[2] = "NONE"; return implode("|", $x);
-        }, $rows);
-        file_put_contents($DB, implode("\n", $up));
-        header("Location: index.php");
-    }
-    ?>
 </body>
 </html>
