@@ -1,9 +1,8 @@
 <?php
 /**
- * 👑 PROJECT: KN BALLAS GOD EMPIRE (V1400)
+ * 👑 PROJECT: KN BALLAS OMNI SUPREME (V1600)
  * 👤 BOSS: KN (ANH NGUYEN)
- * 🛰️ MODULES: HWID LOCK + IP LOCK + AUTOWALK + 30 FUNCTIONS
- * 🎨 STYLE: CYBERPUNK GLASSMORPHISM
+ * 🛰️ MODULES: HWID LOCK + IP LOCK + AUTOWALK + 30+ FUNCTIONS
  */
 
 session_start();
@@ -13,7 +12,7 @@ $ADMIN_PASS = "Anhnguyendz_99";
 if (!file_exists($DB)) touch($DB);
 
 // =========================================================
-// 🛰️ [LOGIC 1] - API KEY & ANTI-SHARE (HWID + IP)
+// 🛰️ [1] LOGIC API & ANTI-SHARE (BẢO MẬT TẦNG SÂU)
 // =========================================================
 if (isset($_GET['check_key'])) {
     $k = trim($_GET['check_key']);
@@ -42,7 +41,7 @@ if (isset($_GET['check_key'])) {
         header('Content-Type: text/plain');
         echo "AUTH_SUCCESS|"; 
 ?>
--- [[ 🛡️ TRẢ VỀ CODE AUTOWALK NGUYÊN BẢN CỦA BOSS KN ]]
+-- [[ 🛡️ GIỮ NGUYÊN BẢN CODE AUTOWALK CỦA BOSS KN ]]
 Script_name("AutoWalk AutoY")
 script_author("ChatGPT")
 require "lib.moonloader"
@@ -105,139 +104,109 @@ end
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>BOSS KN | ULTIMATE EMPIRE</title>
+    <title>BOSS KN | OMNI SUPREME V1600</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;900&display=swap" rel="stylesheet">
     <style>
-        :root { --p: #00ffd5; --s: #ff00c1; --bg: rgba(0,0,0,0.8); }
+        /* 🎨 [2] 30+ CHỨC NĂNG UI/UX (SIÊU ĐẸP) */
+        :root { --p: #00ffd5; --s: #ff00c1; --bg: rgba(0,0,0,0.85); }
         * { margin:0; padding:0; box-sizing:border-box; font-family: 'Lexend', sans-serif; cursor: none; user-select: none; }
-        body { background: #000; color: #fff; height: 100vh; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        body { background: #000; height: 100vh; overflow: hidden; display: flex; align-items: center; justify-content: center; }
         
-        /* 1. Background Engine */
-        #bg-v { position: fixed; inset: 0; min-width: 100%; min-height: 100%; z-index: -2; object-fit: cover; filter: brightness(0.35); }
-        .overlay { position: fixed; inset: 0; background: radial-gradient(circle, transparent 20%, #000 150%); z-index: -1; }
+        /* 1-5. Hiệu ứng nền & Particle */
+        #bg-v { position: fixed; inset: 0; min-width: 100%; min-height: 100%; z-index: -2; object-fit: cover; filter: brightness(0.3); }
+        .overlay { position: fixed; inset: 0; background: radial-gradient(circle, transparent 20%, #000 120%); z-index: -1; }
+        canvas { position: fixed; inset: 0; z-index: -1; }
 
-        /* 2. Glassmorphism Design */
-        .glass { 
-            width: 400px; padding: 50px 30px; border-radius: 40px; 
+        /* 6-15. Design Glassmorphism & Glitch */
+        .glass-card { 
+            width: 400px; padding: 45px; border-radius: 40px; 
             background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(25px);
-            border: 1px solid rgba(0, 255, 213, 0.15); text-align: center;
-            box-shadow: 0 0 60px rgba(0,0,0,0.8); animation: slideUp 1s ease;
+            border: 1px solid rgba(0, 255, 213, 0.2); text-align: center;
+            box-shadow: 0 0 50px rgba(0,255,213,0.1); position: relative;
         }
+        .glitch { font-size: 35px; font-weight: 900; color: #fff; text-transform: uppercase; letter-spacing: -1px; position: relative; }
+        .glitch::before { content: attr(data-text); position: absolute; left: -2px; text-shadow: 2px 0 var(--s); top: 0; overflow: hidden; clip: rect(0,900px,0,0); animation: noise 2s infinite linear alternate-reverse; }
 
-        /* 3. Avatar & Title */
-        .avatar { width: 110px; height: 110px; border-radius: 50%; border: 2px solid var(--p); padding: 5px; margin-bottom: 20px; box-shadow: 0 0 30px var(--p); }
-        .glitch { font-size: 38px; font-weight: 900; color: #fff; text-shadow: 2px 2px var(--s); letter-spacing: -1px; }
+        /* 16-25. Form & Buttons */
+        input { width: 100%; padding: 15px; background: rgba(0,0,0,0.7); border: 1px solid #222; border-radius: 15px; color: var(--p); text-align: center; margin: 20px 0; outline: none; transition: 0.3s; }
+        input:focus { border-color: var(--p); box-shadow: 0 0 15px var(--p); }
+        .btn-main { width: 100%; padding: 16px; border-radius: 15px; border: none; background: linear-gradient(45deg, var(--p), var(--s)); color: #000; font-weight: 900; cursor: pointer; text-transform: uppercase; transition: 0.4s; }
+        .btn-main:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,255,213,0.4); }
+        .btn-admin-gate { background: transparent; color: #444; font-size: 9px; border: 1px solid #111; padding: 8px; margin-top: 15px; border-radius: 8px; width: 100%; transition: 0.3s; }
+        .btn-admin-gate:hover { color: var(--p); border-color: var(--p); }
 
-        /* 4. Input & Button Cyberpunk */
-        input { 
-            width: 100%; padding: 15px; background: rgba(0,0,0,0.6); border: 1px solid #222; 
-            border-radius: 15px; color: var(--p); text-align: center; margin: 25px 0; outline: none;
-            transition: 0.3s; font-size: 14px; letter-spacing: 2px;
-        }
-        input:focus { border-color: var(--p); box-shadow: 0 0 20px rgba(0,255,213,0.2); }
-        .btn { 
-            width: 100%; padding: 16px; border-radius: 15px; border: none; 
-            background: linear-gradient(45deg, var(--p), var(--s)); color: #000; 
-            font-weight: 900; cursor: pointer; text-transform: uppercase; letter-spacing: 2px;
-            transition: 0.4s;
-        }
-        .btn:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,255,213,0.4); }
+        /* 26-30. Music Visualizer & Cursor */
+        #cur { width: 10px; height: 10px; background: var(--p); border-radius: 50%; position: fixed; pointer-events: none; z-index: 10000; box-shadow: 0 0 15px var(--p); transition: transform 0.1s; }
+        .v-box { display: flex; gap: 3px; justify-content: center; margin-top: 15px; height: 20px; align-items: flex-end; }
+        .v-bar { width: 3px; background: var(--p); animation: wave 0.5s infinite alternate; }
 
-        /* 5. Custom Cursor */
-        #cur { width: 10px; height: 10px; background: var(--p); border-radius: 50%; position: fixed; pointer-events: none; z-index: 10000; box-shadow: 0 0 15px var(--p); }
-
-        /* 6. Music Visualizer */
-        .visualizer { display: flex; gap: 4px; justify-content: center; margin-top: 20px; }
-        .v-bar { width: 3px; height: 15px; background: var(--p); animation: pulse 0.6s infinite alternate; }
-        @keyframes pulse { from { height: 5px; opacity: 0.2; } to { height: 25px; opacity: 1; } }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes noise { 0% { clip: rect(10px, 999px, 40px, 0); } 100% { clip: rect(80px, 999px, 90px, 0); } }
+        @keyframes wave { from { height: 3px; } to { height: 20px; } }
     </style>
 </head>
 <body oncontextmenu="return false;">
     <div id="cur"></div>
-    <div class="overlay"></div>
+    <canvas id="canvas"></canvas>
     <video id="bg-v" autoplay loop muted playsinline><source src="bg.mp4" type="video/mp4"></video>
     <audio id="bg-m" loop src="myhome.mp3"></audio>
 
-    <div class="glass" id="auth-ui">
-        <div style="font-size: 50px; color: var(--p); margin-bottom: 10px;"><i class="fas fa-biohazard"></i></div>
-        <div class="glitch">AUTHENTICATION</div>
-        <p style="font-size: 9px; letter-spacing: 4px; opacity: 0.4; margin-top: 5px;">ANTI-SHARE SYSTEM ACTIVE</p>
-        <input type="text" id="key-input" placeholder="BALLAS SECRET CODE...">
-        <button class="btn" onclick="verify()">Unlock Empire</button>
-        <p id="status" style="margin-top: 15px; font-size: 12px; color: var(--s);"></p>
+    <div class="glass-card" id="auth-ui">
+        <div style="font-size: 40px; color: var(--p); margin-bottom: 10px;"><i class="fas fa-shield-alt"></i></div>
+        <div class="glitch" data-text="AUTHENTICATION">AUTHENTICATION</div>
+        <p style="font-size: 8px; letter-spacing: 4px; opacity: 0.4;">HWID & IP LOCK SYSTEM</p>
+        <input type="text" id="k" placeholder="ENTER BALLAS KEY...">
+        <button class="btn-main" onclick="verify()">UNLOCK EMPIRE</button>
+        <button class="btn-admin-gate" onclick="document.getElementById('admin-ui').style.display='block'">[ BOSS ADMIN LOGIN ]</button>
+        <p id="stt" style="color:var(--s); font-size: 11px; margin-top: 15px;"></p>
     </div>
 
-    <div class="glass" id="bio-ui" style="display:none;">
-        <img src="https://i.ibb.co/ynM5RCLc/avatar.jpg" class="avatar">
-        <div class="glitch">BOSS KN</div>
-        <p style="font-size: 10px; letter-spacing: 6px; opacity: 0.5; margin-top: 5px;">SUPREME FOUNDER</p>
-        
-        <div class="visualizer">
-            <div class="v-bar"></div><div class="v-bar" style="animation-delay:0.1s"></div><div class="v-bar" style="animation-delay:0.3s"></div><div class="v-bar" style="animation-delay:0.5s"></div>
+    <div class="glass-card" id="bio-ui" style="display:none;">
+        <img src="https://i.ibb.co/ynM5RCLc/avatar.jpg" style="width:100px; height:100px; border-radius:50%; border:2px solid var(--p); padding:5px; margin-bottom:15px;">
+        <div class="glitch" data-text="BOSS KN">BOSS KN</div>
+        <div class="v-box">
+            <div class="v-bar"></div><div class="v-bar" style="animation-delay:0.1s"></div><div class="v-bar" style="animation-delay:0.2s"></div><div class="v-bar" style="animation-delay:0.3s"></div>
         </div>
-        <p style="font-size: 12px; color: var(--p); margin-top: 10px;">myhome.mp3</p>
-        
-        <div style="margin-top:30px; display:flex; justify-content:center; gap:30px; font-size: 20px;">
+        <p style="font-size: 11px; color: var(--p); margin-top: 10px;">Playing: myhome.mp3</p>
+        <div style="margin-top:25px; display:flex; justify-content:center; gap:20px; font-size: 18px;">
             <a href="#" style="color:#fff;"><i class="fab fa-discord"></i></a>
             <a href="#" style="color:#fff;"><i class="fab fa-youtube"></i></a>
         </div>
     </div>
 
-    <?php if(isset($_GET['boss_terminal'])): ?>
-    <div style="position:fixed; inset:0; background:#000; z-index:10001; padding:50px; overflow-y:auto;">
+    <div id="admin-ui" style="display:none; position:fixed; inset:0; background:#000; z-index:10001; padding:50px;">
         <h1 style="color:var(--p)">BOSS ADMIN PORTAL</h1>
         <form method="POST">
-            <input type="password" name="pw" placeholder="Admin Password...">
-            <button class="btn" name="login">LOGIN</button>
+            <input type="password" name="pw" placeholder="Admin Password..." style="width: 300px;">
+            <button class="btn-main" name="login" style="width: 100px;">VÀO</button>
         </form>
-        <?php if(isset($_POST['login']) && $_POST['pw'] === $ADMIN_PASS) $_SESSION['boss']=1; ?>
-        <?php if($_SESSION['boss']): ?>
-            <div style="margin-top:40px; border-top: 1px solid #222; padding-top: 20px;">
+        <?php if(isset($_POST['login']) && $_POST['pw'] === $ADMIN_PASS) $_SESSION['is_boss']=1; ?>
+        <?php if($_SESSION['is_boss']): ?>
+            <div style="margin-top:30px; border-top: 1px solid #222; padding-top: 20px;">
                 <form method="POST">
-                    <input type="text" name="new_k" placeholder="Tên Key Mới">
-                    <button class="btn" name="add">TẠO KEY (30 NGÀY)</button>
-                    <button class="btn" name="clear" style="background:red; margin-top:10px;">XÓA TẤT CẢ KEY</button>
+                    <input type="text" name="nk" placeholder="Tên Key">
+                    <button class="btn-main" name="add" style="width: 200px;">TẠO KEY (30 NGÀY)</button>
+                    <button class="btn-main" name="reset_db" style="background:red; width: 200px; margin-top:10px;">RESET DATABASE</button>
                 </form>
-                <div style="margin-top:20px; text-align:left; background:#111; padding:20px; font-size:12px; border:1px solid var(--p);">
-                    <b>KEY | EXPIRY | IP | HWID</b><br>
-                    <?php echo nl2br(file_get_contents($DB)); ?>
+                <div style="margin-top:20px; background:#111; padding:20px; font-size:12px; border:1px solid #333; text-align:left;">
+                    <b>KEY | EXPIRY | IP | HWID</b><br><?php echo nl2br(file_get_contents($DB)); ?>
                 </div>
             </div>
             <?php 
-                if(isset($_POST['add'])){ file_put_contents($DB, $_POST['new_k']."|".date('Y-m-d', strtotime('+30 days'))."|NONE|NONE\n", FILE_APPEND); header("Location: ?boss_terminal=1"); }
-                if(isset($_POST['clear'])){ file_put_contents($DB, ""); header("Location: ?boss_terminal=1"); }
+                if(isset($_POST['add'])){ file_put_contents($DB, $_POST['nk']."|".date('Y-m-d', strtotime('+30 days'))."|NONE|NONE\n", FILE_APPEND); header("Location: index.php"); }
+                if(isset($_POST['reset_db'])){ file_put_contents($DB, ""); header("Location: index.php"); }
             ?>
         <?php endif; ?>
-        <br><a href="index.php" style="color:var(--p); text-decoration:none;">[ EXIT TERMINAL ]</a>
+        <br><button onclick="location.href='index.php'" style="background:none; color:#555; border:none; cursor:pointer;">[ QUAY LẠI ]</button>
     </div>
-    <?php endif; ?>
 
     <script>
-        // 1. Cursor Effect
-        document.onmousemove = (e) => { 
-            const c = document.getElementById('cur');
-            c.style.left = e.clientX + 'px'; c.style.top = e.clientY + 'px'; 
-        }
-
-        // 2. Authentication Function
-        async function verify() {
-            const k = document.getElementById('key-input').value;
-            const r = await fetch(`index.php?check_key=${k}&hwid=WEB_ACCESS`);
-            const t = await r.text();
-            if(t.includes("AUTH_SUCCESS")) {
-                document.getElementById('auth-ui').style.display='none';
-                document.getElementById('bio-ui').style.display='block';
-                document.getElementById('bg-m').play();
-            } else {
-                document.getElementById('status').innerText = "LỖI: " + t;
-            }
-        }
-        
-        // 3. Anti-F12 & Right Click
-        document.oncontextmenu = () => false;
-        document.onkeydown = (e) => { if(e.keyCode == 123) return false; }
-    </script>
-</body>
-</html>
+        // Particle Engine
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let w, h, particles = [];
+        function init() { w=canvas.width=window.innerWidth; h=canvas.height=window.innerHeight; }
+        function loop() {
+            ctx.clearRect(0,0,w,h); ctx.fillStyle="rgba(0,255,213,0.1)";
+            if(particles.length < 60) particles.push({x:Math.random()*w, y:Math.random()*h, s:Math.random()*1});
+            particles.forEach((p, i) => { p.y-=p.s; if(p.y<0) p
