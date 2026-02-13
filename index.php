@@ -5,20 +5,18 @@ session_start();
 $admin_pass = "123456"; 
 $db_file = "database.txt";
 
-// TỰ ĐỘNG FIX QUYỀN GHI KHI CHẠY CODE
-if (!file_exists($db_file)) {
-    @file_put_contents($db_file, "");
-}
+// TỰ ĐỘNG FIX QUYỀN GHI
+if (!file_exists($db_file)) { @file_put_contents($db_file, ""); }
 @chmod($db_file, 0777);
 
-// --- PHẦN 1: API CHECK KEY ---
+// --- PHẦN 1: API CHECK KEY & GỬI CODE LUA ---
 if (isset($_GET['check_key'])) {
     $key_input = $_GET['check_key'];
     $user_ip = $_SERVER['REMOTE_ADDR']; 
     $data = file_exists($db_file) ? file($db_file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) : [];
     $new_data = [];
     $found = false;
-    $response = "NOT_FOUND";
+    $expiry_date = "";
 
     foreach ($data as $line) {
         $parts = explode("|", $line);
@@ -28,17 +26,11 @@ if (isset($_GET['check_key'])) {
         $locked_ip = isset($parts[2]) ? $parts[2] : "";
 
         if ($saved_key === $key_input) {
-            $found = true;
-            if (date("Y-m-d") > $expiry) {
-                $response = "EXPIRED";
-            } else {
-                if ($locked_ip === "") {
+            if (date("Y-m-d") <= $expiry) {
+                if ($locked_ip === "" || $locked_ip === $user_ip) {
+                    $found = true;
                     $locked_ip = $user_ip;
-                    $response = "OK|" . $expiry;
-                } elseif ($locked_ip !== $user_ip) {
-                    $response = "WRONG_IP";
-                } else {
-                    $response = "OK|" . $expiry;
+                    $expiry_date = $expiry;
                 }
             }
         }
@@ -47,35 +39,94 @@ if (isset($_GET['check_key'])) {
 
     if ($found) {
         @file_put_contents($db_file, implode("\n", $new_data) . "\n");
+        // TRẢ VỀ CODE LUA AUTOWALK + AUTOY KHI KEY ĐÚNG
+        header('Content-Type: text/plain');
+        echo "AUTH_SUCCESS|";
+?>
+-- [[ ĐOẠN NÀY LÀ RUỘT SCRIPT CỦA MÀY ]] --
+local imgui = require("mimgui")
+local json = require("dkjson")
+local show = imgui.new.bool(true)
+local running = false
+local points = {}
+local idx = 1
+local delay = imgui.new.int(1500)
+local waiting, reachTime = false, 0
+local autoY = imgui.new.bool(false)
+local yDelay = imgui.new.int(1500)
+local lastY = 0
+
+local function walkTo(p)
+    local x,y,z = getCharCoordinates(PLAYER_PED)
+    local dx, dy = p.x-x, p.y-y
+    if math.sqrt(dx*dx+dy*dy) > 1.2 then
+        setCharHeading(PLAYER_PED, math.deg(math.atan2(-dx,dy)))
+        setGameKeyState(1,255)
+        return false
+    else
+        setGameKeyState(1,0)
+        return true
+    end
+end
+
+local function pressY()
+    local id = select(2, sampGetPlayerIdByCharHandle(PLAYER_PED))
+    local mem = allocateMemory(68)
+    sampStorePlayerOnfootData(id, mem)
+    setStructElement(mem, 36, 1, 64, false)
+    sampSendOnfootData(mem)
+    freeMemory(mem)
+end
+
+lua_thread.create(function()
+    while true do
+        wait(0)
+        if running and #points > 0 then
+            local p = points[idx]
+            if not waiting then
+                if walkTo(p) then waiting = true reachTime = os.clock() end
+            elseif os.clock()-reachTime >= delay[0]/1000 then
+                pressY()
+                idx = idx + 1
+                if idx > #points then idx = 1 end
+                waiting = false
+            end
+        end
+        if autoY[0] and os.clock()-lastY >= yDelay[0]/1000 then
+            pressY()
+            lastY = os.clock()
+        end
+    end
+end)
+
+imgui.OnFrame(function() return show[0] end, function()
+    imgui.Begin("AutoWalk VIP (Server Loaded)", show)
+    if imgui.Button("START", imgui.ImVec2(100, 35)) then running = true idx = 1 end
+    imgui.SameLine()
+    if imgui.Button("STOP", imgui.ImVec2(100, 35)) then running = false setGameKeyState(1,0) end
+    if imgui.Button("ADD POINT", imgui.ImVec2(-1, 35)) then
+        local x,y,z = getCharCoordinates(PLAYER_PED)
+        table.insert(points, {x=x, y=y, z=z})
+    end
+    imgui.Checkbox("Enable Auto Y", autoY)
+    imgui.SliderInt("Y Delay", yDelay, 100, 5000)
+    imgui.End()
+end)
+sampAddChatMessage("{00FFD5}[Server]: {FFFFFF}AutoWalk Script Loaded!", -1)
+<?php
+        exit;
+    } else {
+        die("FAIL");
     }
-    
-    if ($response === "WRONG_IP") die("WRONG_IP");
-    if (strpos($response, "OK") !== false) {
-        $date_parts = explode("|", $response);
-        $diff = strtotime($date_parts[1]) - strtotime(date("Y-m-d"));
-        die("OK|" . ceil($diff / 86400));
-    }
-    die($response);
 }
 
-// --- PHẦN 2: LOGIC QUẢN LÝ ---
-if (isset($_POST['login'])) {
-    if ($_POST['pw'] == $admin_pass) $_SESSION['admin'] = true;
-}
-if (isset($_GET['logout'])) {
-    session_destroy();
-    header("Location: ?");
-}
-
-// FIX LỖI LINE 70: ÉP QUYỀN TRƯỚC KHI GHI
+// --- PHẦN 2: LOGIC QUẢN LÝ (GIỮ NGUYÊN) ---
+if (isset($_POST['login'])) { if ($_POST['pw'] == $admin_pass) $_SESSION['admin'] = true; }
+if (isset($_GET['logout'])) { session_destroy(); header("Location: ?"); }
 if (isset($_POST['add_key']) && isset($_SESSION['admin'])) {
     $new = trim($_POST['k']) . "|" . $_POST['d'] . "|\n";
-    @chmod($db_file, 0777); 
-    if (@file_put_contents($db_file, $new, FILE_APPEND) === false) {
-        $error_msg = "Không thể ghi file! Thử xóa file database.txt trên GitHub rồi tạo lại.";
-    }
+    @file_put_contents($db_file, $new, FILE_APPEND);
 }
-
 if (isset($_GET['del']) && isset($_SESSION['admin'])) {
     $data = file($db_file, FILE_IGNORE_NEW_LINES);
     unset($data[$_GET['del']]);
@@ -104,7 +155,6 @@ if (isset($_GET['del']) && isset($_SESSION['admin'])) {
 <div class="card">
     <img src="https://i.ibb.co/ynM5RCLc/avatar.jpg" class="avatar">
     <h3>ADMIN PANEL</h3>
-    <?php if (isset($error_msg)) echo "<p style='color:red;font-size:12px'>$error_msg</p>"; ?>
     <?php if (!isset($_SESSION['admin'])): ?>
         <form method="POST"><input type="password" name="pw" placeholder="Mật khẩu..."><button type="submit" name="login">ĐĂNG NHẬP</button></form>
     <?php else: ?>
