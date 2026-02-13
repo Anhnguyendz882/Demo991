@@ -1,88 +1,86 @@
 <?php
 session_start();
 
-// --- CẤU HÌNH HỆ THỐNG ---
-$admin_pass = "123456"; // Mật khẩu trang Admin
-$db_file = "database.txt"; // File lưu trữ key và IP
+// --- CẤU HÌNH ---
+$admin_pass = "123456"; 
+$db_file = "database.txt";
 
-// Đảm bảo file database tồn tại và có quyền ghi
 if (!file_exists($db_file)) { @file_put_contents($db_file, ""); }
 @chmod($db_file, 0777);
 
-// --- PHẦN 1: API XÁC THỰC CHO SCRIPT GAME ---
+// --- 1. API TRẢ VỀ CODE LUA AUTOWALK CHO GAME ---
 if (isset($_GET['check_key'])) {
     $key_input = trim($_GET['check_key']);
     $user_ip = $_SERVER['REMOTE_ADDR']; 
     $data = file_exists($db_file) ? file($db_file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) : [];
-    $new_data = [];
-    $status = "NOT_FOUND";
-    $script_content = "";
+    $new_data = []; $status = "NOT_FOUND";
 
     foreach ($data as $line) {
         $p = explode("|", $line);
         if (count($p) < 2) continue;
-        
-        $s_key = $p[0]; 
-        $expiry = $p[1];
-        $l_ip = isset($p[2]) ? trim($p[2]) : "";
-
-        if ($s_key === $key_input) {
-            // 1. Kiểm tra ngày hết hạn
-            if (date("Y-m-d") > $expiry) {
-                $status = "EXPIRED";
-            } else {
-                // 2. Logic Khóa IP (Anti-Share)
-                if ($l_ip === "") {
-                    $l_ip = $user_ip; // Lưu IP thằng đầu tiên dùng key
-                    $status = "AUTH_SUCCESS";
-                } elseif ($l_ip === $user_ip) {
-                    $status = "AUTH_SUCCESS"; // Đúng máy cũ
-                } else {
-                    $status = "WRONG_IP"; // Máy lạ dùng key
-                }
+        if ($p[0] === $key_input) {
+            if (date("Y-m-d") > $p[1]) { $status = "EXPIRED"; } 
+            else {
+                if (empty($p[2])) { $p[2] = $user_ip; $status = "AUTH_SUCCESS"; } 
+                elseif ($p[2] === $user_ip) { $status = "AUTH_SUCCESS"; } 
+                else { $status = "WRONG_IP"; }
             }
         }
-        $new_data[] = "$s_key|$expiry|$l_ip";
+        $new_data[] = implode("|", $p);
     }
 
     if ($status === "AUTH_SUCCESS") {
         @file_put_contents($db_file, implode("\n", $new_data) . "\n");
         header('Content-Type: text/plain');
-        echo "AUTH_SUCCESS|";
+        echo "AUTH_SUCCESS|"; 
 ?>
--- [[ ĐÂY LÀ NƠI CHỨA SCRIPT LUA CỦA MÀY ]] --
-local imgui = require("mimgui")
-local show = imgui.new.bool(true)
-imgui.OnFrame(function() return show[0] end, function()
-    imgui.Begin("Black Cat VIP", show)
-    imgui.TextColored(imgui.ImVec4(0, 1, 0.8, 1), "DANG NHAP THANH CONG!")
-    imgui.Text("Chuc ban choi game vui ve.")
+-- [[ SCRIPT LUA AUTOWALK CHUẨN MIMGUI ]] --
+local imgui = require 'mimgui'
+local encoding = require 'encoding'
+encoding.default = 'CP1251'
+local u8 = encoding.UTF8
+
+local renderWin = imgui.new.bool(true)
+local autoWalk = imgui.new.bool(false)
+
+imgui.OnFrame(function() return renderWin[0] end, function()
+    imgui.SetNextWindowSize(imgui.ImVec2(250, 150), imgui.Cond.FirstUseEver)
+    imgui.Begin(u8"BLACK CAT - AUTO WALK", renderWin)
+    if imgui.Checkbox(u8"Kích hoạt AutoWalk (W)", autoWalk) then
+        sampAddChatMessage(autoWalk[0] and "{00ffd5}[BC]: {ffffff}ON" or "{00ffd5}[BC]: {ffffff}OFF", -1)
+    end
+    imgui.Text(u8"Key: Đang hoạt động")
     imgui.End()
 end)
+
+function main()
+    while true do
+        wait(0)
+        if autoWalk[0] then
+            setGameKeyState(1, 255) -- Nhấn giữ phím W
+        end
+    end
+end
 <?php
         exit;
-    } else {
-        die($status);
-    }
+    } die($status);
 }
 
-// --- PHẦN 2: LOGIC QUẢN TRỊ ADMIN ---
-if (isset($_POST['login']) && $_POST['pw'] == $admin_pass) $_SESSION['admin'] = true;
+// --- 2. QUẢN LÝ ADMIN ---
+if (isset($_POST['login']) && $_POST['pw'] === $admin_pass) $_SESSION['admin'] = true;
 if (isset($_GET['logout'])) { session_destroy(); header("Location: ?"); exit; }
 
-// Thêm Key mới
-if (isset($_POST['add_key']) && isset($_SESSION['admin'])) {
-    $k = trim($_POST['k_name']);
-    $d = $_POST['k_date'];
-    if(!empty($k)) @file_put_contents($db_file, "$k|$d|\n", FILE_APPEND);
-}
-
-// Xóa Key
-if (isset($_GET['del']) && isset($_SESSION['admin'])) {
-    $data = file($db_file, FILE_IGNORE_NEW_LINES);
-    unset($data[$_GET['del']]);
-    file_put_contents($db_file, (count($data) > 0 ? implode("\n", $data)."\n" : ""));
-    header("Location: ?"); exit;
+if (isset($_SESSION['admin'])) {
+    if (isset($_POST['add_key'])) {
+        $k = trim($_POST['k']); $d = $_POST['d'];
+        if($k) @file_put_contents($db_file, "$k|$d|\n", FILE_APPEND);
+    }
+    if (isset($_GET['del'])) {
+        $data = file($db_file, FILE_IGNORE_NEW_LINES);
+        unset($data[$_GET['del']]);
+        file_put_contents($db_file, (count($data)>0 ? implode("\n", $data)."\n" : ""));
+        header("Location: ?"); exit;
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -90,189 +88,109 @@ if (isset($_GET['del']) && isset($_SESSION['admin'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Black Cat Admin - Premium System</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <title>Black Cat - Premium Panel</title>
     <style>
-        :root { --main: #00ffd5; --glass: rgba(0, 0, 0, 0.75); }
-        * { box-sizing: border-box; cursor: none !important; }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: sans-serif; background: #000; }
+        :root { --p: #00ffd5; --bg: rgba(10, 10, 10, 0.85); }
+        * { box-sizing: border-box; cursor: crosshair; }
+        body, html { margin:0; padding:0; height:100%; overflow:hidden; font-family: 'Segoe UI', sans-serif; background:#000; color:#fff; }
         
-        /* Video Background */
-        #bg-video {
-            position: fixed; top: 0; left: 0; min-width: 100%; min-height: 100%;
-            z-index: -2; object-fit: cover; filter: brightness(0.5);
+        /* Video Nền */
+        #bg-video { position:fixed; top:0; left:0; width:100%; height:100%; object-fit:cover; z-index:-1; filter: brightness(0.4); }
+        
+        canvas { position:fixed; top:0; left:0; pointer-events:none; z-index:5; }
+        
+        .card { 
+            position:relative; z-index:10; background: var(--bg); padding:40px; 
+            border-radius:30px; border:1px solid rgba(0,255,213,0.3); width:380px; 
+            text-align:center; backdrop-filter:blur(15px); box-shadow: 0 0 40px rgba(0,0,0,0.8);
         }
         
-        canvas { position: fixed; top: 0; left: 0; pointer-events: none; z-index: 5; }
+        .avatar { width:100px; height:100px; border-radius:50%; border:3px solid var(--p); box-shadow:0 0 20px var(--p); margin-bottom:20px; }
+        h2 { color:var(--p); letter-spacing:4px; text-transform:uppercase; margin:10px 0; }
         
-        .container {
-            display: flex; justify-content: center; align-items: center; height: 100vh;
-        }
-
-        .card {
-            position: relative; z-index: 10;
-            background: var(--glass);
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(0, 255, 213, 0.3);
-            border-radius: 30px; padding: 40px; width: 380px;
-            text-align: center; box-shadow: 0 0 50px rgba(0,0,0,0.9);
-        }
+        input { width:100%; background:rgba(0,0,0,0.6); border:1px solid #333; padding:15px; border-radius:12px; color:#fff; margin-bottom:12px; outline:none; text-align:center; }
+        input:focus { border-color:var(--p); }
+        button { width:100%; background:var(--p); color:#000; padding:15px; border-radius:12px; font-weight:900; border:none; transition:0.3s; cursor:pointer; }
+        button:hover { transform:scale(1.05); box-shadow: 0 0 20px var(--p); }
         
-        .avatar {
-            width: 90px; height: 90px; border-radius: 50%;
-            border: 3px solid var(--main); padding: 5px;
-            box-shadow: 0 0 20px var(--main); margin-bottom: 15px;
-        }
+        .key-list { margin-top:20px; max-height:200px; overflow-y:auto; text-align:left; border-top:1px solid #333; padding-top:15px; }
+        .key-item { background:rgba(255,255,255,0.05); padding:12px; border-radius:10px; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border:1px solid rgba(255,255,255,0.1); }
+        .key-item b { color:var(--p); font-size:14px; }
+        .key-item small { font-size:10px; color:#888; display:block; }
+        .del-link { color:#ff4d4d; text-decoration:none; font-weight:bold; font-size:12px; }
         
-        h2 { font-family: 'Orbitron', sans-serif; color: var(--main); letter-spacing: 5px; margin: 10px 0; text-shadow: 0 0 10px var(--main); }
-        .sys-text { font-size: 10px; color: var(--main); margin-bottom: 25px; opacity: 0.8; letter-spacing: 2px; }
-        
-        input {
-            width: 100%; background: rgba(0,0,0,0.6); border: 1px solid #333;
-            padding: 14px; border-radius: 12px; color: #fff; margin-bottom: 15px;
-            outline: none; text-align: center;
-        }
-        input:focus { border-color: var(--main); }
-        
-        button {
-            width: 100%; background: var(--main); color: #000;
-            padding: 15px; border-radius: 12px; font-weight: 900;
-            border: none; font-family: 'Orbitron', sans-serif; transition: 0.3s;
-        }
-        button:hover { transform: scale(1.05); box-shadow: 0 0 25px var(--main); }
-        
-        .key-list { margin-top: 20px; max-height: 180px; overflow-y: auto; text-align: left; }
-        .key-item {
-            background: rgba(255,255,255,0.05); padding: 12px; border-radius: 12px;
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.05);
-        }
-        .key-info b { color: var(--main); font-size: 14px; }
-        .key-info span { font-size: 9px; color: #888; display: block; }
-        .del-btn { color: #ff4d4d; text-decoration: none; font-size: 11px; font-weight: bold; }
-        
-        ::-webkit-scrollbar { width: 3px; }
-        ::-webkit-scrollbar-thumb { background: var(--main); }
+        ::-webkit-scrollbar { width:4px; }
+        ::-webkit-scrollbar-thumb { background:var(--p); border-radius:10px; }
     </style>
 </head>
-<body onclick="startMedia()">
-    <video autoplay muted loop playsinline id="bg-video">
-        <source src="bg.mp4" type="video/mp4">
-    </video>
+<body onclick="startAll()">
+    <video autoplay muted loop playsinline id="bg-video"><source src="bg.mp4" type="video/mp4"></video>
+    <audio id="m" loop><source src="https://files.catbox.moe/uclsqn.mp3" type="audio/mpeg"></audio>
+    <canvas id="c"></canvas>
 
-    <audio id="bg-music" loop>
-        <source src="https://files.catbox.moe/uclsqn.mp3" type="audio/mpeg">
-    </audio>
-
-    <canvas id="canvas"></canvas>
-
-    <div class="container">
+    <div style="display:flex; justify-content:center; align-items:center; height:100vh;">
         <div class="card">
             <img src="https://i.ibb.co/ynM5RCLc/avatar.jpg" class="avatar">
-            <h2>BLACK CAT</h2>
-            <div class="sys-text">MP4 VIDEO & SOUND SYSTEM</div>
+            <h2>Black Cat VIP</h2>
+            <p style="font-size:9px; color:var(--p); letter-spacing:2px;">AUTOWALK SYSTEM ACTIVE</p>
 
             <?php if (!isset($_SESSION['admin'])): ?>
                 <form method="POST">
-                    <input type="password" name="pw" placeholder="ENTER SYSTEM PASSWORD" required>
-                    <button type="submit">LOGIN SYSTEM</button>
+                    <input type="password" name="pw" placeholder="Mật khẩu: 123456" required>
+                    <button type="submit" name="login">ĐĂNG NHẬP HỆ THỐNG</button>
                 </form>
             <?php else: ?>
                 <form method="POST">
-                    <input type="text" name="k_name" placeholder="Key Name" required>
-                    <input type="date" name="k_date" value="<?php echo date('Y-m-d', strtotime('+30 days')); ?>">
-                    <button type="submit" name="add_key">GENERATE KEY</button>
+                    <input type="text" name="k" placeholder="Nhập tên Key..." required>
+                    <input type="date" name="d" value="<?=date('Y-m-d', strtotime('+30 days'))?>">
+                    <button type="submit" name="add_key">TẠO KEY MỚI</button>
                 </form>
-                
                 <div class="key-list">
                     <?php 
-                    $data = file_exists($db_file) ? file($db_file, FILE_IGNORE_NEW_LINES) : [];
-                    foreach ($data as $idx => $line) {
-                        $p = explode("|", $line); if(empty($p[0])) continue;
-                        $ip_stt = (empty($p[2])) ? "WAITING..." : "LOCKED IP";
+                    $data = file_exists($db_file) ? file($db_file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) : [];
+                    foreach ($data as $i => $l) {
+                        $p = explode("|", $l);
+                        $stt = empty($p[2]) ? "Trống" : "Đã khóa IP";
                         echo "<div class='key-item'>
-                                <div class='key-info'>
-                                    <b>$p[0]</b>
-                                    <span>Exp: $p[1]</span>
-                                    <span style='color:".(empty($p[2])?"#777":"var(--main)")."'>$ip_stt</span>
-                                </div>
-                                <a href='?del=$idx' class='del-btn'>DEL</a>
+                                <div><b>$p[0]</b><small>Hết hạn: $p[1]</small><small style='color:var(--p)'>IP: $stt</small></div>
+                                <a href='?del=$i' class='del-link'>XÓA</a>
                               </div>";
                     }
                     ?>
                 </div>
-                <a href="?logout" style="color:#333; text-decoration:none; font-size: 9px; display:block; margin-top:20px;">LOGOUT</a>
+                <a href="?logout" style="color:#444; text-decoration:none; font-size:10px; margin-top:15px; display:block;">ĐĂNG XUẤT</a>
             <?php endif; ?>
         </div>
     </div>
 
     <script>
-        // --- MEDIA CONTROL ---
-        function startMedia() {
-            document.getElementById('bg-music').play().catch(()=>{});
-        }
+        function startAll() { document.getElementById('m').play().catch(()=>{}); }
 
-        // --- CANVAS EFFECTS (RIPPLE & PARTICLES) ---
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        const c = document.getElementById('c'), ctx = c.getContext('2d');
+        c.width = window.innerWidth; c.height = window.innerHeight;
+        let ps = [], rs = [];
 
-        let particles = [];
-        let ripples = [];
+        window.onmousemove = (e) => {
+            for(let i=0; i<2; i++) ps.push({x:e.x, y:e.y, s:Math.random()*3+1, vx:Math.random()*2-1, vy:Math.random()*2-1});
+            if(Math.random()>0.9) rs.push({x:e.x, y:e.y, r:0, o:0.5});
+        };
 
-        class Particle {
-            constructor(x, y) {
-                this.x = x; this.y = y;
-                this.size = Math.random() * 3 + 1;
-                this.speedX = Math.random() * 2 - 1;
-                this.speedY = Math.random() * 2 - 1;
-            }
-            update() {
-                this.x += this.speedX; this.y += this.speedY;
-                if (this.size > 0.1) this.size -= 0.05;
-            }
-            draw() {
-                ctx.fillStyle = 'rgba(0, 255, 213, 0.5)';
-                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill();
-            }
-        }
-
-        class Ripple {
-            constructor(x, y) {
-                this.x = x; this.y = y;
-                this.radius = 0; this.opacity = 0.5;
-            }
-            update() { this.radius += 2.5; this.opacity -= 0.01; }
-            draw() {
-                ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                ctx.strokeStyle = `rgba(0, 255, 213, ${this.opacity})`;
-                ctx.lineWidth = 1.5; ctx.stroke();
-            }
-        }
-
-        window.addEventListener('mousemove', (e) => {
-            for (let i = 0; i < 2; i++) particles.push(new Particle(e.clientX, e.clientY));
-            if (Math.random() > 0.9) ripples.push(new Ripple(e.clientX, e.clientY));
-        });
-
-        function animate() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            particles.forEach((p, i) => {
-                p.update(); p.draw();
-                if (p.size <= 0.1) particles.splice(i, 1);
+        function draw() {
+            ctx.clearRect(0,0,c.width,c.height);
+            ps.forEach((p,i)=>{ 
+                p.x+=p.vx; p.y+=p.vy; p.s-=0.05; 
+                if(p.s<=0) ps.splice(i,1);
+                ctx.fillStyle='#00ffd5'; ctx.beginPath(); ctx.arc(p.x,p.y,p.s,0,Math.PI*2); ctx.fill();
             });
-            ripples.forEach((r, i) => {
-                r.update(); r.draw();
-                if (r.opacity <= 0) ripples.splice(i, 1);
+            rs.forEach((r,i)=>{ 
+                r.r+=2; r.o-=0.01; 
+                if(r.o<=0) rs.splice(i,1);
+                ctx.strokeStyle=`rgba(0,255,213,${r.o})`; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(r.x,r.y,r.r,0,Math.PI*2); ctx.stroke();
             });
-            requestAnimationFrame(animate);
+            requestAnimationFrame(draw);
         }
-        animate();
-
-        window.addEventListener('resize', () => {
-            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-        });
+        draw();
+        window.onresize = () => { c.width = window.innerWidth; c.height = window.innerHeight; };
     </script>
 </body>
 </html>
