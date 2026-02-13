@@ -1,20 +1,17 @@
 <?php
 session_start();
-
-// --- CẤU HÌNH ---
-$admin_pass = "123456"; 
+$admin_pass = "1912"; 
 $db_file = "database.txt";
 
 if (!file_exists($db_file)) { @file_put_contents($db_file, ""); }
 @chmod($db_file, 0777);
 
-// --- 1. API TRẢ VỀ CODE LUA AUTOWALK CHO GAME ---
+// --- 1. CHỨC NĂNG API (TRẢ CODE CHO GAME) ---
 if (isset($_GET['check_key'])) {
     $key_input = trim($_GET['check_key']);
     $user_ip = $_SERVER['REMOTE_ADDR']; 
     $data = file_exists($db_file) ? file($db_file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) : [];
     $new_data = []; $status = "NOT_FOUND";
-
     foreach ($data as $line) {
         $p = explode("|", $line);
         if (count($p) < 2) continue;
@@ -28,164 +25,143 @@ if (isset($_GET['check_key'])) {
         }
         $new_data[] = implode("|", $p);
     }
-
     if ($status === "AUTH_SUCCESS") {
-        @file_put_contents($db_file, implode("\n", $new_data) . "\n");
+        file_put_contents($db_file, implode("\n", $new_data) . "\n");
         header('Content-Type: text/plain');
         echo "AUTH_SUCCESS|"; 
 ?>
--- [[ SCRIPT LUA AUTOWALK CHUẨN MIMGUI ]] --
+-- [[ CODE LUA CHUẨN ]] --
 local imgui = require 'mimgui'
-local encoding = require 'encoding'
-encoding.default = 'CP1251'
-local u8 = encoding.UTF8
-
-local renderWin = imgui.new.bool(true)
-local autoWalk = imgui.new.bool(false)
-
-imgui.OnFrame(function() return renderWin[0] end, function()
-    imgui.SetNextWindowSize(imgui.ImVec2(250, 150), imgui.Cond.FirstUseEver)
-    imgui.Begin(u8"BLACK CAT - AUTO WALK", renderWin)
-    if imgui.Checkbox(u8"Kích hoạt AutoWalk (W)", autoWalk) then
-        sampAddChatMessage(autoWalk[0] and "{00ffd5}[BC]: {ffffff}ON" or "{00ffd5}[BC]: {ffffff}OFF", -1)
-    end
-    imgui.Text(u8"Key: Đang hoạt động")
+local auto = imgui.new.bool(false)
+imgui.OnFrame(function() return true end, function()
+    imgui.Begin("BLACK CAT VIP")
+    imgui.Checkbox("AutoWalk (W)", auto)
     imgui.End()
 end)
-
-function main()
-    while true do
-        wait(0)
-        if autoWalk[0] then
-            setGameKeyState(1, 255) -- Nhấn giữ phím W
-        end
-    end
-end
+function main() while true do wait(0) if auto[0] then setGameKeyState(1, 255) end end end
 <?php
         exit;
     } die($status);
 }
 
-// --- 2. QUẢN LÝ ADMIN ---
+// --- 2. CHỨC NĂNG QUẢN LÝ (ADMIN PANEL) ---
 if (isset($_POST['login']) && $_POST['pw'] === $admin_pass) $_SESSION['admin'] = true;
 if (isset($_GET['logout'])) { session_destroy(); header("Location: ?"); exit; }
-
 if (isset($_SESSION['admin'])) {
     if (isset($_POST['add_key'])) {
         $k = trim($_POST['k']); $d = $_POST['d'];
-        if($k) @file_put_contents($db_file, "$k|$d|\n", FILE_APPEND);
+        if($k) file_put_contents($db_file, "$k|$d|\n", FILE_APPEND);
     }
     if (isset($_GET['del'])) {
         $data = file($db_file, FILE_IGNORE_NEW_LINES);
         unset($data[$_GET['del']]);
-        file_put_contents($db_file, (count($data)>0 ? implode("\n", $data)."\n" : ""));
+        file_put_contents($db_file, implode("\n", $data). (count($data)>0?"\n":""));
         header("Location: ?"); exit;
     }
 }
 ?>
 <!DOCTYPE html>
-<html lang="vi">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Black Cat - Premium Panel</title>
+    <title>Black Cat - Full Option</title>
     <style>
-        :root { --p: #00ffd5; --bg: rgba(10, 10, 10, 0.85); }
-        * { box-sizing: border-box; cursor: crosshair; }
-        body, html { margin:0; padding:0; height:100%; overflow:hidden; font-family: 'Segoe UI', sans-serif; background:#000; color:#fff; }
+        :root { --p: #00ffd5; }
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #000; font-family: sans-serif; }
         
-        /* Video Nền */
-        #bg-video { position:fixed; top:0; left:0; width:100%; height:100%; object-fit:cover; z-index:-1; filter: brightness(0.4); }
-        
-        canvas { position:fixed; top:0; left:0; pointer-events:none; z-index:5; }
-        
+        /* 3. CHỨC NĂNG VIDEO BG */
+        #video-bg {
+            position: fixed; top: 50%; left: 50%;
+            min-width: 100%; min-height: 100%;
+            z-index: -1; transform: translate(-50%, -50%);
+            object-fit: cover; filter: brightness(0.4);
+        }
+
         .card { 
-            position:relative; z-index:10; background: var(--bg); padding:40px; 
-            border-radius:30px; border:1px solid rgba(0,255,213,0.3); width:380px; 
-            text-align:center; backdrop-filter:blur(15px); box-shadow: 0 0 40px rgba(0,0,0,0.8);
+            position: relative; z-index: 10; background: rgba(0, 0, 0, 0.8); 
+            padding: 30px; border-radius: 20px; border: 1px solid var(--p); 
+            width: 320px; text-align: center; backdrop-filter: blur(10px);
+            box-shadow: 0 0 30px rgba(0, 255, 213, 0.2);
         }
         
-        .avatar { width:100px; height:100px; border-radius:50%; border:3px solid var(--p); box-shadow:0 0 20px var(--p); margin-bottom:20px; }
-        h2 { color:var(--p); letter-spacing:4px; text-transform:uppercase; margin:10px 0; }
+        .avatar { width: 80px; height: 80px; border-radius: 50%; border: 2px solid var(--p); margin-bottom: 10px; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 10px; border: 1px solid #333; background: #111; color: #fff; text-align: center; outline: none; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: var(--p); color: #000; font-weight: bold; border: none; border-radius: 10px; cursor: pointer; }
         
-        input { width:100%; background:rgba(0,0,0,0.6); border:1px solid #333; padding:15px; border-radius:12px; color:#fff; margin-bottom:12px; outline:none; text-align:center; }
-        input:focus { border-color:var(--p); }
-        button { width:100%; background:var(--p); color:#000; padding:15px; border-radius:12px; font-weight:900; border:none; transition:0.3s; cursor:pointer; }
-        button:hover { transform:scale(1.05); box-shadow: 0 0 20px var(--p); }
-        
-        .key-list { margin-top:20px; max-height:200px; overflow-y:auto; text-align:left; border-top:1px solid #333; padding-top:15px; }
-        .key-item { background:rgba(255,255,255,0.05); padding:12px; border-radius:10px; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border:1px solid rgba(255,255,255,0.1); }
-        .key-item b { color:var(--p); font-size:14px; }
-        .key-item small { font-size:10px; color:#888; display:block; }
-        .del-link { color:#ff4d4d; text-decoration:none; font-weight:bold; font-size:12px; }
-        
-        ::-webkit-scrollbar { width:4px; }
-        ::-webkit-scrollbar-thumb { background:var(--p); border-radius:10px; }
+        /* 4. CHỨC NĂNG HẠT & 5. BÓNG NƯỚC (CANVAS) */
+        canvas { position: fixed; top: 0; left: 0; pointer-events: none; z-index: 5; }
+        .key-item { background: rgba(255,255,255,0.05); padding: 8px; margin-bottom: 5px; border-radius: 8px; display: flex; justify-content: space-between; font-size: 11px; }
     </style>
 </head>
-<body onclick="startAll()">
-    <video autoplay muted loop playsinline id="bg-video"><source src="bg.mp4" type="video/mp4"></video>
-    <audio id="m" loop><source src="https://files.catbox.moe/uclsqn.mp3" type="audio/mpeg"></audio>
+<body onclick="playAll(event)">
+
+    <video autoplay muted loop playsinline id="video-bg"><source src="bg.mp4" type="video/mp4"></video>
+    
+    <audio id="bg-audio" loop><source src="song.mp3" type="audio/mpeg"></audio>
+
     <canvas id="c"></canvas>
 
-    <div style="display:flex; justify-content:center; align-items:center; height:100vh;">
+    <div style="display: flex; justify-content: center; align-items: center; height: 100vh;">
         <div class="card">
             <img src="https://i.ibb.co/ynM5RCLc/avatar.jpg" class="avatar">
-            <h2>Black Cat VIP</h2>
-            <p style="font-size:9px; color:var(--p); letter-spacing:2px;">AUTOWALK SYSTEM ACTIVE</p>
-
+            <h2 style="color:var(--p); margin: 5px 0;">BLACK CAT</h2>
+            
             <?php if (!isset($_SESSION['admin'])): ?>
                 <form method="POST">
-                    <input type="password" name="pw" placeholder="Mật khẩu: 123456" required>
-                    <button type="submit" name="login">ĐĂNG NHẬP HỆ THỐNG</button>
+                    <input type="password" name="pw" placeholder="Mật khẩu Admin..." required>
+                    <button type="submit" name="login">LOGIN</button>
                 </form>
             <?php else: ?>
                 <form method="POST">
-                    <input type="text" name="k" placeholder="Nhập tên Key..." required>
+                    <input type="text" name="k" placeholder="Key" required>
                     <input type="date" name="d" value="<?=date('Y-m-d', strtotime('+30 days'))?>">
-                    <button type="submit" name="add_key">TẠO KEY MỚI</button>
+                    <button type="submit" name="add_key">TẠO KEY</button>
                 </form>
-                <div class="key-list">
+                <div style="max-height: 100px; overflow-y: auto; margin-top: 10px; text-align: left;">
                     <?php 
-                    $data = file_exists($db_file) ? file($db_file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) : [];
+                    $data = file($db_file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
                     foreach ($data as $i => $l) {
                         $p = explode("|", $l);
-                        $stt = empty($p[2]) ? "Trống" : "Đã khóa IP";
-                        echo "<div class='key-item'>
-                                <div><b>$p[0]</b><small>Hết hạn: $p[1]</small><small style='color:var(--p)'>IP: $stt</small></div>
-                                <a href='?del=$i' class='del-link'>XÓA</a>
-                              </div>";
+                        echo "<div class='key-item'><span>$p[0]</span> <a href='?del=$i' style='color:red; text-decoration:none;'>XÓA</a></div>";
                     }
                     ?>
                 </div>
-                <a href="?logout" style="color:#444; text-decoration:none; font-size:10px; margin-top:15px; display:block;">ĐĂNG XUẤT</a>
+                <a href="?logout" style="color:#444; font-size: 10px; text-decoration: none; display: block; margin-top: 10px;">Đăng xuất</a>
             <?php endif; ?>
         </div>
     </div>
 
     <script>
-        function startAll() { document.getElementById('m').play().catch(()=>{}); }
-
         const c = document.getElementById('c'), ctx = c.getContext('2d');
         c.width = window.innerWidth; c.height = window.innerHeight;
-        let ps = [], rs = [];
+        let particles = [], ripples = [];
+
+        function playAll(e) {
+            document.getElementById('bg-audio').play();
+            document.getElementById('video-bg').play();
+            // TẠO HIỆU ỨNG BÓNG NƯỚC (RIPPLE)
+            ripples.push({ x: e.clientX, y: e.clientY, r: 0, o: 0.6 });
+        }
 
         window.onmousemove = (e) => {
-            for(let i=0; i<2; i++) ps.push({x:e.x, y:e.y, s:Math.random()*3+1, vx:Math.random()*2-1, vy:Math.random()*2-1});
-            if(Math.random()>0.9) rs.push({x:e.x, y:e.y, r:0, o:0.5});
+            // TẠO HIỆU ỨNG HẠT (PARTICLES)
+            for(let i=0; i<2; i++) particles.push({ x: e.clientX, y: e.clientY, s: Math.random()*2+1, vx: Math.random()*2-1, vy: Math.random()*2-1, o: 1 });
         };
 
         function draw() {
             ctx.clearRect(0,0,c.width,c.height);
-            ps.forEach((p,i)=>{ 
-                p.x+=p.vx; p.y+=p.vy; p.s-=0.05; 
-                if(p.s<=0) ps.splice(i,1);
-                ctx.fillStyle='#00ffd5'; ctx.beginPath(); ctx.arc(p.x,p.y,p.s,0,Math.PI*2); ctx.fill();
+            // Vẽ hạt
+            particles.forEach((p,i)=>{ 
+                p.x+=p.vx; p.y+=p.vy; p.o-=0.02; 
+                if(p.o<=0) particles.splice(i,1);
+                ctx.fillStyle=`rgba(0,255,213,${p.o})`; ctx.beginPath(); ctx.arc(p.x,p.y,p.s,0,Math.PI*2); ctx.fill(); 
             });
-            rs.forEach((r,i)=>{ 
+            // Vẽ bóng nước
+            ripples.forEach((r,i)=>{ 
                 r.r+=2; r.o-=0.01; 
-                if(r.o<=0) rs.splice(i,1);
-                ctx.strokeStyle=`rgba(0,255,213,${r.o})`; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(r.x,r.y,r.r,0,Math.PI*2); ctx.stroke();
+                if(r.o<=0) ripples.splice(i,1);
+                ctx.strokeStyle=`rgba(0,255,213,${r.o})`; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(r.x,r.y,r.r,0,Math.PI*2); ctx.stroke();
             });
             requestAnimationFrame(draw);
         }
