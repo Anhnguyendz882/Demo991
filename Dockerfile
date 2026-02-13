@@ -1,7 +1,10 @@
 FROM php:8.2-apache
-# Copy mọi thứ vào thư mục web
+
+# 1. Copy toàn bộ file từ GitHub vào thư mục web trước
 COPY . /var/www/html/
-# Tạo file database và mở quyền ghi (777) để lưu Key
-RUN touch /var/www/html/database.txt && chmod 777 /var/www/html/database.txt
-# Chạy trên cổng 80
+
+# 2. Sau khi file đã ở đó rồi mới cấp quyền ghi cho database
+RUN chmod 777 /var/www/html/database.txt
+
+# 3. Mở cổng 80
 EXPOSE 80
