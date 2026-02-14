@@ -1,149 +1,206 @@
 <?php
 session_start();
-date_default_timezone_set('Asia/Ho_Chi_Minh');
 
-$ADMIN_PASS="admin123";
-define('DB','database.txt');
+$admin_password = "admin123"; // đổi mật khẩu admin tại đây
+$db_file = "database.txt";
 
-function loadKeys(){
- if(!file_exists(DB)) file_put_contents(DB,'');
- $lines=file(DB, FILE_IGNORE_NEW_LINES);
- $data=[];
- foreach($lines as $l){
-  if(trim($l)=='') continue;
-  list($k,$c,$e,$ip)=explode('|',$l);
-  $data[$k]=['created'=>$c,'expire'=>$e,'ip'=>$ip];
- }
- return $data;
+/* ================= API CHECK KEY ================= */
+
+if (isset($_GET['check_key'])) {
+
+    header("Content-Type: text/plain");
+
+    $key = trim($_GET['check_key']);
+
+    if (!file_exists($db_file)) {
+        echo "INVALID";
+        exit;
+    }
+
+    $lines = file($db_file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+
+    foreach ($lines as $line) {
+        list($saved_key, $created, $ip) = explode("|", $line);
+
+        if ($key === trim($saved_key)) {
+
+            // kiểm tra IP nếu có giới hạn
+            if ($ip !== "all" && $ip !== $_SERVER['REMOTE_ADDR']) {
+                echo "INVALID";
+                exit;
+            }
+
+            echo "AUTH_SUCCESS|";
+            readfile("AutoWalk.lua");
+            exit;
+        }
+    }
+
+    echo "INVALID";
+    exit;
 }
 
-function saveKeys($data){
- $out='';
- foreach($data as $k=>$v){
-  $out.="$k|{$v['created']}|{$v['expire']}|{$v['ip']}\n";
- }
- file_put_contents(DB,$out);
+/* ================= LOGIN ================= */
+
+if (isset($_POST['login'])) {
+    if ($_POST['password'] === $admin_password) {
+        $_SESSION['admin'] = true;
+    } else {
+        $error = "Sai mật khẩu!";
+    }
 }
 
-/* ========= API AUTH ========= */
-if(isset($_GET['check_key'])){
- $key=strtoupper($_GET['check_key']);
- $ip=$_SERVER['REMOTE_ADDR'];
- $keys=loadKeys();
-
- if(!isset($keys[$key])) die("INVALID");
- if(time()>$keys[$key]['expire']) die("EXPIRED");
-
- if($keys[$key]['ip']==''){
-  $keys[$key]['ip']=$ip;
-  saveKeys($keys);
- }
-
- if($keys[$key]['ip']!==$ip) die("IP_LOCK");
-
- echo "AUTH_SUCCESS|";
- echo base64_encode(file_get_contents("AutoWalk.lua"));
- exit;
+if (isset($_GET['logout'])) {
+    session_destroy();
+    header("Location: index.php");
+    exit;
 }
 
-/* ========= LOGIN ========= */
-if(isset($_POST['login'])){
- if($_POST['pass']==$ADMIN_PASS)
-  $_SESSION['admin']=true;
+/* ================= CREATE KEY ================= */
+
+if (isset($_POST['create_key']) && isset($_SESSION['admin'])) {
+
+    $new_key = strtoupper(substr(md5(rand()), 0, 10));
+    $created = date("Y-m-d H:i");
+    $ip = empty($_POST['ip']) ? "all" : $_POST['ip'];
+
+    file_put_contents($db_file, "$new_key|$created|$ip\n", FILE_APPEND);
 }
 
-if(isset($_GET['logout'])){
- session_destroy();
- header("Location: ?");
- exit;
+/* ================= DELETE KEY ================= */
+
+if (isset($_GET['delete']) && isset($_SESSION['admin'])) {
+
+    $delete_key = $_GET['delete'];
+
+    $lines = file($db_file, FILE_IGNORE_NEW_LINES);
+
+    $new_data = [];
+
+    foreach ($lines as $line) {
+        if (strpos($line, $delete_key) === false) {
+            $new_data[] = $line;
+        }
+    }
+
+    file_put_contents($db_file, implode("\n", $new_data) . "\n");
 }
 
-/* ========= CREATE KEY ========= */
-if(isset($_POST['create']) && isset($_SESSION['admin'])){
- $keys=loadKeys();
- $key=strtoupper(substr(md5(rand()),0,12));
- $days=intval($_POST['days']);
- $keys[$key]=[
-  'created'=>time(),
-  'expire'=>time()+($days*86400),
-  'ip'=>''
- ];
- saveKeys($keys);
-}
-
-if(isset($_GET['del']) && isset($_SESSION['admin'])){
- $keys=loadKeys();
- unset($keys[$_GET['del']]);
- saveKeys($keys);
-}
-
-if(isset($_GET['resetip']) && isset($_SESSION['admin'])){
- $keys=loadKeys();
- $keys[$_GET['resetip']]['ip']='';
- saveKeys($keys);
-}
-
-$keys=loadKeys();
 ?>
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
-<title>BLACK CAT LOADER</title>
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
+<title>BLACK CAT AUTH</title>
 <style>
-body{background:#020617;color:white;font-family:Orbitron;text-align:center}
-.box{background:#0f172a;padding:30px;border-radius:20px;width:420px;margin:auto;margin-top:60px;box-shadow:0 0 40px cyan}
-button{padding:10px 18px;border:none;border-radius:8px;background:linear-gradient(45deg,#00ffff,#00ff9d);color:#000;font-weight:bold;cursor:pointer}
-input{padding:10px;border-radius:8px;border:none;background:#020617;color:#0ff;text-align:center}
-table{width:100%;margin-top:20px;font-size:13px}
-td,th{padding:6px;border-bottom:1px solid #1e293b}
-.avatar{width:90px;border-radius:50%;box-shadow:0 0 20px cyan}
+body{
+    background:#0d0f1a;
+    color:#fff;
+    font-family:Arial;
+    text-align:center;
+}
+.container{
+    width:90%;
+    max-width:800px;
+    margin:auto;
+    margin-top:40px;
+    background:#111428;
+    padding:25px;
+    border-radius:15px;
+    box-shadow:0 0 25px #00ffc3;
+}
+input,button{
+    padding:10px;
+    border-radius:8px;
+    border:none;
+    margin:5px;
+}
+button{
+    background:#00ffc3;
+    cursor:pointer;
+    font-weight:bold;
+}
+table{
+    width:100%;
+    margin-top:20px;
+    border-collapse:collapse;
+}
+td,th{
+    padding:10px;
+    border-bottom:1px solid #333;
+}
+.keybox{
+    background:#0b0e1c;
+    padding:15px;
+    border-radius:10px;
+    margin-bottom:20px;
+}
 </style>
 </head>
 <body>
 
-<?php if(!isset($_SESSION['admin'])): ?>
+<div class="container">
 
-<div class="box">
-<h2>ADMIN LOGIN</h2>
+<?php if (!isset($_SESSION['admin'])): ?>
+
+<h2>🔐 ADMIN LOGIN</h2>
+
 <form method="post">
-<input type="password" name="pass" placeholder="Master Key"><br><br>
-<button name="login">ENTER</button>
+<input type="password" name="password" placeholder="Nhập mật khẩu">
+<br>
+<button name="login">Đăng nhập</button>
 </form>
-</div>
+
+<?php if(isset($error)) echo "<p style='color:red'>$error</p>"; ?>
 
 <?php else: ?>
 
-<div class="box">
-<img src="https://i.imgur.com/3ZQ3Z9M.png" class="avatar">
-<h2>BLACK CAT LOADER</h2>
-<p>Premium SA-MP System</p>
+<h2>🐱 BLACK CAT AUTH PANEL</h2>
 
-<form method="post">
-<br>Create Key (days):
-<input type="number" name="days" value="30" style="width:70px">
-<button name="create">CREATE</button>
-</form>
-
-<table>
-<tr><th>KEY</th><th>EXPIRE</th><th>IP</th><th>ACTION</th></tr>
-<?php foreach($keys as $k=>$v): ?>
-<tr>
-<td><?= $k ?></td>
-<td><?= date("d/m/Y",$v['expire']) ?></td>
-<td><?= $v['ip']?:'NEW' ?></td>
-<td>
-<a href="?resetip=<?= $k ?>">RESET</a> |
-<a href="?del=<?= $k ?>" style="color:red">DELETE</a>
-</td>
-</tr>
-<?php endforeach; ?>
-</table>
-<br>
-<a href="?logout">LOGOUT</a>
+<div class="keybox">
+<b>Bio:</b><br>
+AutoWalk VIP Loader<br>
+Secure Key System<br>
+Made for SA-MP Mobile
 </div>
 
+<form method="post">
+<input type="text" name="ip" placeholder="Giới hạn IP (để trống = all)">
+<button name="create_key">Tạo Key</button>
+</form>
+
+<a href="?logout" style="color:#00ffc3">Đăng xuất</a>
+
+<h3>Danh sách Key</h3>
+
+<table>
+<tr>
+<th>KEY</th>
+<th>CREATED</th>
+<th>IP</th>
+<th></th>
+</tr>
+
+<?php
+if (file_exists($db_file)) {
+    $lines = file($db_file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+
+    foreach ($lines as $line) {
+        list($key,$time,$ip) = explode("|",$line);
+        echo "<tr>
+        <td>$key</td>
+        <td>$time</td>
+        <td>$ip</td>
+        <td><a style='color:red' href='?delete=$key'>Xóa</a></td>
+        </tr>";
+    }
+}
+?>
+
+</table>
+
 <?php endif; ?>
+
+</div>
 </body>
 </html>
