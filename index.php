@@ -1,272 +1,281 @@
 <?php
 session_start();
-date_default_timezone_set('Asia/Ho_Chi_Minh');
 
-$ADMIN_KEY = "admin123";   // key đăng nhập admin
-$DB_FILE   = "database.txt";
+$ADMIN_PASS = "123456"; // mật khẩu admin
+$DB = "database.txt";
 
-if(!file_exists($DB_FILE)) file_put_contents($DB_FILE,"");
+if(!file_exists($DB)) file_put_contents($DB,"");
 
-function loadKeys(){
-    global $DB_FILE;
-    return file($DB_FILE, FILE_IGNORE_NEW_LINES);
-}
-
-function saveKeys($arr){
-    global $DB_FILE;
-    file_put_contents($DB_FILE, implode("\n",$arr)."\n");
-}
-
-function createKey($days){
-    global $DB_FILE;
-    $key = strtoupper(substr(md5(time().rand()),0,12));
-    $expire = time()+($days*86400);
-    file_put_contents($DB_FILE,"$key|$expire|\n",FILE_APPEND);
-}
-
-function deleteKey($key){
-    $new=[];
-    foreach(loadKeys() as $line){
-        if(strpos($line,$key)!==0) $new[]=$line;
-    }
-    saveKeys($new);
-}
-
-function findKey($key){
-    foreach(loadKeys() as $line){
-        list($k,$exp,$ip)=explode("|",$line);
-        if($k==$key) return [$k,$exp,$ip];
-    }
-    return false;
-}
-
-# ================= API =================
+/* ================= API CHECK KEY ================= */
 if(isset($_GET['check_key'])){
-    $key=trim($_GET['check_key']);
-    $ip=$_SERVER['REMOTE_ADDR'];
-    $data=findKey($key);
+    $key = trim($_GET['check_key']);
+    $ip = $_SERVER['REMOTE_ADDR'];
+    $today = date("d/m/Y");
 
-    if(!$data) die("INVALID");
+    $lines = file($DB, FILE_IGNORE_NEW_LINES);
 
-    list($k,$exp,$saved_ip)=$data;
+    foreach($lines as $i=>$line){
+        $p = explode("|",$line);
+        $k = $p[0] ?? '';
+        $exp = $p[1] ?? '';
+        $saved_ip = $p[2] ?? '-';
 
-    if(time()>$exp) die("EXPIRED");
+        if($k === $key){
 
-    if($saved_ip=="" || $saved_ip==$ip){
-        deleteKey($k);
-        file_put_contents($DB_FILE,"$k|$exp|$ip\n",FILE_APPEND);
-    } else die("IP_LOCKED");
+            if(strtotime(str_replace("/","-",$exp)) < strtotime($today)){
+                echo "KEY_EXPIRED";
+                exit;
+            }
 
-    header("Content-Type:text/plain");
+            if($saved_ip == '-' ){
+                $lines[$i] = "$k|$exp|$ip";
+                file_put_contents($DB, implode("\n",$lines));
+            }
 
-echo "AUTH_SUCCESS|";
-?>
-script_name("AutoWalk AutoY")
-script_author("KN")
+            echo "AUTH_SUCCESS";
+            exit;
+        }
+    }
 
-require "lib.moonloader"
-local imgui = require "mimgui"
-local inicfg = require "inicfg"
+    echo "INVALID";
+    exit;
+}
 
-local spamTime=1500
-local show=imgui.new.bool(true)
-local running=false
-local points={}
-local idx=1
-local cfgname="autowalk_points"
-
-local lastX,lastY=0,0
-local stuckTime=0
-
-local cfg=inicfg.load(nil,cfgname)
-
-function savePoints()
- cfg={} cfg.points={}
- for i,p in ipairs(points) do
-  cfg.points[i]={x=p[1],y=p[2],z=p[3]}
- end
- inicfg.save(cfg,cfgname)
- sampAddChatMessage("[AutoWalk] Saved!",-1)
-end
-
-function loadPoints()
- if cfg and cfg.points then
-  for i,p in pairs(cfg.points) do
-   table.insert(points,{p.x,p.y,p.z})
-  end
- end
-end
-
-function sendY()
- local id=select(2,sampGetPlayerIdByCharHandle(PLAYER_PED))
- local mem=allocateMemory(68)
- sampStorePlayerOnfootData(id,mem)
- setStructElement(mem,36,1,64,false)
- sampSendOnfootData(mem)
- freeMemory(mem)
-end
-
-local function walk(p)
- local x,y,z=getCharCoordinates(PLAYER_PED)
- local dx=p[1]-x
- local dy=p[2]-y
- local dist=math.sqrt(dx*dx+dy*dy)
-
- if dist>1.2 then
-  local heading=math.deg(math.atan2(-dx,dy))
-  setCharHeading(PLAYER_PED,heading)
-  setGameKeyState(1,255)
-  setGameKeyState(0,0)
-
-  if math.abs(x-lastX)<0.02 and math.abs(y-lastY)<0.02 then
-   stuckTime=stuckTime+1
-  else
-   stuckTime=0
-  end
-
-  if stuckTime>20 then
-   setGameKeyState(16,255)
-   wait(100)
-   setGameKeyState(16,0)
-   stuckTime=0
-  end
-
-  lastX,lastY=x,y
-  return false
- else
-  setGameKeyState(1,0)
-  return true
- end
-end
-
-imgui.OnFrame(function() return show[0] end,function()
-imgui.Begin("AutoWalk AutoY",show)
-
-imgui.Text("Points: "..#points)
-imgui.Text("Current: "..idx)
-imgui.Text(running and "RUNNING" or "STOPPED")
-
-if imgui.Button("Add Point") then
- local x,y,z=getCharCoordinates(PLAYER_PED)
- table.insert(points,{x,y,z})
-end
-
-if imgui.Button("SAVE CONFIG") then savePoints() end
-
-if imgui.Button("START") then if #points>0 then running=true idx=1 end end
-if imgui.Button("STOP") then running=false setGameKeyState(1,0) end
-if imgui.Button("CLEAR") then points={} end
-
-imgui.End()
-end)
-
-function main()
- repeat wait(0) until isSampAvailable()
- loadPoints()
-
- sampRegisterChatCommand("awui",function() show[0]=not show[0] end)
-
- while true do
-  wait(10)
-  if running and #points>0 then
-   local p=points[idx]
-   if walk(p) then
-    local t=os.clock()
-    while os.clock()-t < spamTime/1000 do
-     sendY()
-     wait(120)
-    end
-    idx = idx % #points + 1
-   end
-  end
- end
-end
-<?php exit; }
-
-# ================= ADMIN =================
+/* ================= LOGIN ================= */
 if(isset($_POST['login'])){
-    if($_POST['key']==$ADMIN_KEY){
-        $_SESSION['admin']=true;
+    if($_POST['pass'] === $ADMIN_PASS){
+        $_SESSION['admin'] = true;
     }
 }
 
-if(isset($_GET['logout'])) unset($_SESSION['admin']);
-
-if(isset($_POST['create']) && isset($_SESSION['admin'])){
-    createKey($_POST['days']);
+if(isset($_GET['logout'])){
+    session_destroy();
+    header("Location: index.php");
+    exit;
 }
 
-if(isset($_GET['del']) && isset($_SESSION['admin'])){
-    deleteKey($_GET['del']);
+/* ================= CREATE KEY ================= */
+if(isset($_POST['create'])){
+    $days = intval($_POST['days']);
+    if($days <= 0) $days = 30;
+
+    $key = strtoupper(substr(md5(time().rand()),0,12));
+    $expire = date("d/m/Y", strtotime("+$days days"));
+
+    file_put_contents($DB,"$key|$expire|-\n", FILE_APPEND);
 }
+
+/* ================= DELETE ================= */
+if(isset($_GET['del'])){
+    $del = $_GET['del'];
+    $lines = file($DB, FILE_IGNORE_NEW_LINES);
+    $new=[];
+
+    foreach($lines as $l){
+        if(strpos($l,$del) === false) $new[]=$l;
+    }
+
+    file_put_contents($DB, implode("\n",$new));
+    header("Location: index.php");
+    exit;
+}
+
+$rows = file($DB, FILE_IGNORE_NEW_LINES);
 ?>
+
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
-<title>BLACK CAT SYSTEM</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BLACK CAT KEY SYSTEM</title>
+
 <style>
-body{margin:0;height:100vh;background:#000;color:#fff;
-display:flex;justify-content:center;align-items:center;font-family:Arial;overflow:hidden}
-video{position:fixed;min-width:100%;min-height:100%;z-index:-2;object-fit:cover;filter:brightness(0.3)}
-.glass{width:380px;padding:35px;border-radius:30px;
-background:rgba(255,255,255,0.05);backdrop-filter:blur(20px);
-border:1px solid rgba(0,255,255,0.3);
-box-shadow:0 0 40px rgba(0,255,255,0.25);text-align:center}
-.avatar{width:110px;border-radius:50%;border:3px solid cyan;box-shadow:0 0 25px cyan}
-input,button{width:100%;padding:14px;margin-top:12px;border-radius:10px;border:none}
-input{background:#000;color:#0ff;border-left:4px solid cyan}
-button{background:linear-gradient(45deg,cyan,magenta);font-weight:bold;cursor:pointer}
-table{width:100%;margin-top:15px;font-size:12px}
+body{
+margin:0;
+font-family:Segoe UI;
+background:radial-gradient(circle at top,#020617,#000);
+color:white;
+}
+
+/* glass card */
+.card{
+width:380px;
+max-width:95%;
+margin:50px auto;
+padding:28px;
+border-radius:22px;
+background:rgba(15,23,42,.75);
+backdrop-filter: blur(14px);
+box-shadow:0 0 50px rgba(0,255,255,.15);
+border:1px solid rgba(255,255,255,.05);
+text-align:center;
+}
+
+/* avatar */
+.avatar{
+width:90px;
+height:90px;
+border-radius:50%;
+margin:auto;
+background:url('https://i.imgur.com/8Km9tLL.png') center/cover;
+box-shadow:0 0 25px #22d3ee;
+}
+
+h1{
+margin:12px 0 0;
+font-size:22px;
+letter-spacing:2px;
+}
+
+.status{
+color:#22d3ee;
+font-size:13px;
+margin-bottom:20px;
+}
+
+/* inputs */
+input{
+width:100%;
+padding:13px;
+border-radius:12px;
+border:1px solid rgba(34,211,238,.25);
+background:#020617;
+color:white;
+margin-bottom:14px;
+font-size:15px;
+outline:none;
+}
+
+/* button */
+button{
+width:100%;
+padding:13px;
+border-radius:14px;
+border:none;
+font-weight:bold;
+font-size:15px;
+background:linear-gradient(90deg,#06b6d4,#9333ea);
+color:white;
+cursor:pointer;
+transition:.2s;
+}
+
+button:hover{
+transform:scale(1.03);
+box-shadow:0 0 18px rgba(147,51,234,.6);
+}
+
+/* table */
+table{
+width:100%;
+border-collapse:collapse;
+margin-top:18px;
+}
+
+th{
+color:#22d3ee;
+font-size:12px;
+padding:8px;
+border-bottom:1px solid rgba(34,211,238,.3);
+}
+
+td{
+padding:8px;
+font-size:12px;
+border-bottom:1px solid rgba(255,255,255,.06);
+}
+
+.key{
+color:#67e8f9;
+font-weight:bold;
+letter-spacing:1px;
+}
+
+.del{
+color:#ef4444;
+text-decoration:none;
+font-weight:bold;
+}
+
+.logout{
+display:inline-block;
+margin-top:16px;
+color:#22d3ee;
+text-decoration:none;
+font-size:13px;
+}
+
+.copy{
+cursor:pointer;
+}
 </style>
 </head>
 <body>
 
-<video autoplay muted loop>
-<source src="bg.mp4" type="video/mp4">
-</video>
-
-<div class="glass">
-
 <?php if(!isset($_SESSION['admin'])): ?>
 
-<img src="https://i.ibb.co/ynM5RCLc/avatar.jpg" class="avatar">
-<h2>BLACK CAT SYSTEM</h2>
-<p style="color:cyan">ADMIN LOGIN</p>
+<div class="card">
+<div class="avatar"></div>
+<h1>ADMIN PANEL</h1>
+<div class="status">SECURE LOGIN</div>
 
 <form method="post">
-<input name="key" placeholder="Master key">
+<input type="password" name="pass" placeholder="Password">
 <button name="login">LOGIN</button>
 </form>
+</div>
 
 <?php else: ?>
 
-<img src="https://i.ibb.co/ynM5RCLc/avatar.jpg" class="avatar">
-<h2>BOSS KN</h2>
-<p style="color:cyan">SYSTEM ONLINE</p>
+<div class="card">
+
+<div class="avatar"></div>
+<h1>BOSS KN</h1>
+<div class="status">SYSTEM ONLINE</div>
 
 <form method="post">
-<input type="number" name="days" placeholder="Số ngày sử dụng">
+<input name="days" placeholder="Số ngày sử dụng">
 <button name="create">TẠO KEY</button>
 </form>
 
-<table border="1">
-<tr><th>KEY</th><th>HẾT HẠN</th><th>IP</th><th>XÓA</th></tr>
-<?php foreach(loadKeys() as $l):
-list($k,$e,$ip)=explode("|",$l); ?>
+<table>
 <tr>
-<td><?=$k?></td>
-<td><?=date("d/m/Y",$e)?></td>
-<td><?=$ip?></td>
-<td><a href="?del=<?=$k?>">X</a></td>
+<th>KEY</th>
+<th>HẾT HẠN</th>
+<th>IP</th>
+<th>XÓA</th>
 </tr>
+
+<?php foreach($rows as $r):
+$p=explode("|",$r);
+$key=$p[0] ?? '';
+$exp=$p[1] ?? '';
+$ip=$p[2] ?? '-';
+?>
+
+<tr>
+<td class="key copy" onclick="copyKey('<?=$key?>')"><?=$key?></td>
+<td><?=$exp?></td>
+<td><?=$ip?></td>
+<td><a class="del" href="?del=<?=$key?>">✖</a></td>
+</tr>
+
 <?php endforeach; ?>
 </table>
 
-<br><a href="?logout" style="color:cyan">LOGOUT</a>
+<a class="logout" href="?logout">LOGOUT</a>
+
+</div>
+
+<script>
+function copyKey(k){
+navigator.clipboard.writeText(k);
+alert("Đã copy key!");
+}
+</script>
 
 <?php endif; ?>
 
-</div>
 </body>
 </html>
