@@ -1,8 +1,8 @@
 <?php
 /**
- * 👑 PROJECT: KN BALLAS - CHILL EDITION (V12.000)
- * 🎨 THEME: PURPLE & PINK SYNTHWAVE
- * 🛠️ CORE: GIỮ NGUYÊN AUTOWALK + ADMIN DIRECT ACCESS
+ * 👑 PROJECT: KN BALLAS - SUPREME FINAL (V15.000)
+ * 🎨 THEME: PURPLE & PINK CHILL
+ * 🛠️ CORE: GIỮ NGUYÊN AUTOWALK + AUTO-START MENU + SAVE/LOAD CONFIG
  */
 
 session_start();
@@ -10,12 +10,12 @@ error_reporting(0);
 date_default_timezone_set('Asia/Ho_Chi_Minh');
 
 $DB_FILE = "database.txt";
-$ADMIN_PASS = "Anhnguyendz_99"; // PASS ADMIN
+$ADMIN_PASS = "Anhnguyendz_99";
 
 if (!file_exists($DB_FILE)) { file_put_contents($DB_FILE, ""); }
 
 // =========================================================
-// 🛰️ [1] API TOOL (KHÔNG ĐỤNG VÀO)
+// 🛰️ [1] API TRẢ CODE CHO GAME (FIX LỖI KHÔNG HIỆN MENU)
 // =========================================================
 if (isset($_GET['check_key'])) {
     $user_key = trim($_GET['check_key']);
@@ -42,23 +42,32 @@ if (isset($_GET['check_key'])) {
     if ($auth_status === "SUCCESS") {
         echo "AUTH_SUCCESS|"; 
 ?>
--- [[ 🛡️ AUTOWALK CỦA BOSS KN (GIỮ NGUYÊN 100%) ]]
+-- [[ 🛡️ TRỌN BỘ SCRIPT AUTOWALK CHUẨN BOSS KN ]]
 script_name("AutoWalk AutoY")
 script_author("KN_BOSS")
+
 require "lib.moonloader"
-local imgui, json = require "mimgui", require "dkjson"
+local imgui = require "mimgui"
+local json = require "dkjson"
+
 local config_path = getWorkingDirectory() .. "\\config\\AutoWalk_KN.json"
-local spamTime, show, running, points, idx = 1500, imgui.new.bool(true), false, {}, 1
+local spamTime = 1500 
+local show = imgui.new.bool(true)
+local running = false
+local points = {}
+local idx = 1
 
 function saveConfig()
     if not doesDirectoryExist(getWorkingDirectory() .. "\\config") then createDirectory(getWorkingDirectory() .. "\\config") end
     local f = io.open(config_path, "w")
-    if f then f:write(json.encode(points)) f:close() end
+    if f then f:write(json.encode(points)) f:close() sampAddChatMessage("{d946ef}[KN]: {ffffff}Da luu toa do!", -1) end
 end
+
 function loadConfig()
     local f = io.open(config_path, "r")
-    if f then local c = f:read("*a") f:close() points = json.decode(c) or {} end
+    if f then local c = f:read("*a") f:close() points = json.decode(c) or {} sampAddChatMessage("{d946ef}[KN]: {ffffff}Da tai toa do!", -1) end
 end
+
 function sendY()
     local pId = select(2, sampGetPlayerIdByCharHandle(PLAYER_PED))
     local m = allocateMemory(68)
@@ -67,20 +76,46 @@ function sendY()
     sampSendOnfootData(m)
     freeMemory(m)
 end
+
+local function walk(p)
+    local x,y,z = getCharCoordinates(PLAYER_PED)
+    local dx, dy = p[1]-x, p[2]-y
+    local dist = math.sqrt(dx*dx+dy*dy)
+    if dist > 1.2 then
+        setCharHeading(PLAYER_PED, math.deg(math.atan2(-dx, dy)))
+        setGameKeyState(1, 255)
+        return false
+    else
+        setGameKeyState(1, 0)
+        return true
+    end
+end
+
+imgui.OnFrame(function() return show[0] end, function()
+    imgui.Begin("AutoWalk AutoY - BOSS KN", show)
+    imgui.Text("Points: "..#points)
+    imgui.Text("Current: "..idx)
+    imgui.Text(running and "STATUS: RUNNING" or "STATUS: STOPPED")
+    if imgui.Button("Add Point") then table.insert(points,{getCharCoordinates(PLAYER_PED)}) end
+    if imgui.Button("START") then if #points>0 then running, idx = true, 1 end end
+    if imgui.Button("STOP") then running = false setGameKeyState(1,0) end
+    if imgui.Button("CLEAR") then points = {} end
+    imgui.Separator()
+    if imgui.Button("SAVE CONFIG") then saveConfig() end
+    imgui.SameLine()
+    if imgui.Button("LOAD CONFIG") then loadConfig() end
+    imgui.End()
+end)
+
 function main()
     repeat wait(0) until isSampAvailable()
     loadConfig()
+    show[0] = true -- Ép hiện menu ngay khi login xong
     sampRegisterChatCommand("awui", function() show[0]=not show[0] end)
     while true do
         wait(0)
         if running and #points > 0 then
-            local p = points[idx]
-            local x,y,z = getCharCoordinates(PLAYER_PED)
-            if math.sqrt((p[1]-x)^2 + (p[2]-y)^2) > 1.2 then
-                setCharHeading(PLAYER_PED, math.deg(math.atan2(-(p[1]-x), p[2]-y)))
-                setGameKeyState(1, 255)
-            else
-                setGameKeyState(1, 0)
+            if walk(points[idx]) then
                 local t = os.clock()
                 while os.clock()-t < spamTime/1000 do sendY() wait(120) end
                 idx = (idx % #points) + 1
@@ -88,11 +123,13 @@ function main()
         end
     end
 end
--- [[ UI IMGUE CỦA MÀY NẰM TRONG TOOL RỒI ]]
+
+-- KÍCH HOẠT SCRIPT
+lua_thread.create(main)
 <?php exit; } die("AUTH_ERR|".$auth_status); }
 
 // =========================================================
-// 🔐 [2] XỬ LÝ ADMIN (VÀO LINK LÀ GẶP)
+// 🔐 [2] XỬ LÝ ADMIN PANEL (GIAO DIỆN TÍM HỒNG CHILL)
 // =========================================================
 if (isset($_POST['login_boss'])) {
     if ($_POST['boss_pw'] === $ADMIN_PASS) { $_SESSION['kn_boss'] = true; } 
@@ -100,13 +137,13 @@ if (isset($_POST['login_boss'])) {
 }
 if (isset($_POST['create_key']) && $_SESSION['kn_boss']) {
     $name = trim($_POST['key_name']); $days = (int)$_POST['key_days'];
-    $rows = file($DB_FILE, FILE_IGNORE_NEW_LINES); $up = []; $found = false;
+    $rows = file($DB_FILE, FILE_IGNORE_NEW_LINES); $up = []; $f = false;
     foreach($rows as $r) {
         $x = explode("|", $r);
-        if($x[0] === $name) { $found = true; $x[1] = date('Y-m-d', strtotime(($x[1] > date("Y-m-d") ? $x[1] : date("Y-m-d"))." +$days days")); $x[2] = "NONE"; }
+        if($x[0] === $name) { $f = true; $x[1] = date('Y-m-d', strtotime(($x[1] > date("Y-m-d") ? $x[1] : date("Y-m-d"))." +$days days")); $x[2] = "NONE"; }
         $up[] = implode("|", $x);
     }
-    if(!$found) $up[] = "$name|".date('Y-m-d', strtotime("+$days days"))."|NONE";
+    if(!$f) $up[] = "$name|".date('Y-m-d', strtotime("+$days days"))."|NONE";
     file_put_contents($DB_FILE, implode("\n", $up));
 }
 if (isset($_GET['del_key']) && $_SESSION['kn_boss']) {
@@ -115,108 +152,62 @@ if (isset($_GET['del_key']) && $_SESSION['kn_boss']) {
     file_put_contents($DB_FILE, implode("\n", $up)); header("Location: /");
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KN BOSS PANEL | CHILL</title>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        /* --- BẢNG MÀU TÍM HỒNG CHILL --- */
-        :root {
-            --p: #d946ef; /* Tím hồng sáng */
-            --s: #f472b6; /* Hồng phấn */
-            --bg-glass: rgba(20, 5, 30, 0.6); /* Nền kính tối màu tím */
-        }
-        * { margin:0; padding:0; box-sizing:border-box; font-family: 'Montserrat', sans-serif; }
-        body { background: #0f051d; color: #fff; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-        /* Video nền sẽ bị ám màu tím để hợp theme */
-        #bg-v { position: fixed; inset: 0; min-width: 100%; min-height: 100%; z-index: -1; object-fit: cover; filter: brightness(0.4) hue-rotate(40deg); }
-        
-        .box {
-            width: 90%; max-width: 450px; padding: 40px;
-            border-radius: 30px;
-            background: var(--bg-glass);
-            backdrop-filter: blur(30px); /* Blur mạnh hơn */
-            border: 1px solid rgba(217, 70, 239, 0.3);
-            box-shadow: 0 0 50px rgba(217, 70, 239, 0.15);
-            text-align: center;
-        }
-
-        h1, h2 { text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 15px var(--p); }
-
-        input {
-            width: 100%; padding: 15px; margin: 12px 0;
-            background: rgba(0,0,0,0.4);
-            border: 1px solid #333;
-            border-bottom: 3px solid var(--p); /* Nhấn viền dưới */
-            color: #fff; border-radius: 10px; text-align: center; outline: none; transition: 0.3s;
-        }
-        input:focus { border-color: var(--s); box-shadow: 0 5px 20px -10px var(--s); }
-
-        .btn {
-            width: 100%; padding: 16px; border: none;
-            background: linear-gradient(135deg, var(--p), var(--s));
-            color: #fff; font-weight: 900; border-radius: 12px; cursor: pointer;
-            text-transform: uppercase; letter-spacing: 1px; transition: 0.3s;
-            box-shadow: 0 5px 20px -5px rgba(217, 70, 239, 0.5);
-        }
-        .btn:hover { transform: translateY(-3px); box-shadow: 0 10px 30px -5px rgba(217, 70, 239, 0.7); }
-
-        table { width: 100%; margin-top: 25px; border-collapse: separate; border-spacing: 0 8px; font-size: 12px; }
-        th { color: var(--s); padding: 10px; font-size: 10px; letter-spacing: 1px; }
-        td { padding: 12px; background: rgba(255,255,255,0.03); }
-        td:first-child { border-top-left-radius: 10px; border-bottom-left-radius: 10px; color: var(--p); font-weight: bold; }
-        td:last-child { border-top-right-radius: 10px; border-bottom-right-radius: 10px; }
-
-        .avatar { width: 100px; height: 100px; border-radius: 50%; border: 3px solid var(--p); margin-bottom: 15px; box-shadow: 0 0 30px var(--p); }
-        .links a { color: rgba(255,255,255,0.6); text-decoration: none; font-size: 11px; margin: 0 10px; transition: 0.3s; }
-        .links a:hover { color: var(--s); }
+        :root { --p: #d946ef; --s: #f472b6; }
+        * { margin:0; padding:0; box-sizing:border-box; font-family: sans-serif; }
+        body { background: #0f051d; color: #fff; min-height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        #bg-v { position: fixed; inset: 0; min-width: 100%; min-height: 100%; z-index: -1; object-fit: cover; filter: brightness(0.3) hue-rotate(40deg); }
+        .box { width: 90%; max-width: 450px; padding: 40px; border-radius: 30px; background: rgba(20,5,30,0.8); backdrop-filter: blur(20px); border: 1px solid var(--p); text-align: center; box-shadow: 0 0 30px rgba(217, 70, 239, 0.2); }
+        input { width: 100%; padding: 15px; margin: 10px 0; background: rgba(0,0,0,0.5); border: 1px solid #333; color: #fff; border-radius: 10px; text-align: center; outline: none; border-bottom: 2px solid var(--p); }
+        .btn { width: 100%; padding: 16px; border: none; background: linear-gradient(135deg, var(--p), var(--s)); color: #fff; font-weight: bold; border-radius: 12px; cursor: pointer; text-transform: uppercase; margin-top: 10px; }
+        table { width: 100%; margin-top: 20px; border-collapse: collapse; font-size: 12px; }
+        th, td { padding: 12px; border: 1px solid rgba(255,255,255,0.1); text-align: left; }
+        .avatar { width: 100px; height: 100px; border-radius: 50%; border: 3px solid var(--p); margin-bottom: 15px; box-shadow: 0 0 20px var(--p); }
     </style>
 </head>
 <body>
     <video id="bg-v" autoplay loop muted playsinline><source src="bg.mp4" type="video/mp4"></video>
-
     <div class="box">
         <?php if (!$_SESSION['kn_boss']): ?>
-            <h1 style="color:var(--p); margin-bottom: 10px;">KN BALLAS</h1>
-            <p style="font-size: 10px; opacity: 0.7; margin-bottom: 30px;">MASTER CONTROL SYSTEM</p>
+            <h1 style="color:var(--p); letter-spacing: 5px;">KN BALLAS</h1>
+            <p style="font-size: 10px; margin-bottom: 20px; opacity: 0.6;">ADMIN CONTROL CENTER</p>
             <form method="POST">
                 <input type="password" name="boss_pw" placeholder="ADMIN PASSWORD..." required>
                 <button class="btn" name="login_boss">TRUY CẬP</button>
             </form>
-            <?php if($error) echo "<p style='color:var(--s); margin-top:20px; font-weight:bold;'>$error</p>"; ?>
+            <?php if($error) echo "<p style='color:var(--s); margin-top:15px;'>$error</p>"; ?>
         <?php else: ?>
             <img src="https://i.ibb.co/ynM5RCLc/avatar.jpg" class="avatar">
             <h2 style="color:var(--p);">BOSS PANEL</h2>
-            <div class="links" style="margin: 15px 0;">
-                <a href="/">[ LÀM MỚI ]</a> <a href="?logout" style="color:var(--s);">[ ĐĂNG XUẤT ]</a>
-            </div>
-
-            <form method="POST" style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; margin-top: 20px;">
+            <p style="font-size: 11px; margin: 10px 0;">
+                <a href="/" style="color:#fff; text-decoration:none;">[ REFRESH ]</a> | 
+                <a href="?logout" style="color:var(--s); text-decoration:none;">[ LOGOUT ]</a>
+            </p>
+            <form method="POST" style="margin-top:20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
                 <input type="text" name="key_name" placeholder="Tên Key Khách" required>
-                <input type="number" name="key_days" placeholder="Số ngày cấp" required>
-                <button class="btn" name="create_key">CẤP KEY / GIA HẠN</button>
+                <input type="number" name="key_days" placeholder="Số ngày" required>
+                <button class="btn" name="create_key">CẤP KEY MỚI</button>
             </form>
-
             <table>
-                <tr><th>KEY</th><th>HẠN DÙNG</th><th>IP LOCK</th><th>XÓA</th></tr>
+                <tr><th>KEY</th><th>HẠN</th><th>X</th></tr>
                 <?php 
                 $rows = file($DB_FILE, FILE_IGNORE_NEW_LINES);
                 foreach($rows as $r): $d = explode("|", $r); ?>
                 <tr>
-                    <td><?php echo $d[0]; ?></td>
-                    <td style="color:<?php echo (date("Y-m-d") > $d[1]) ? 'var(--s)' : '#fff'; ?>;"><?php echo $d[1]; ?></td>
-                    <td style="font-size:9px; opacity:0.7;"><?php echo $d[2]; ?></td>
+                    <td><b style="color:var(--p);"><?php echo $d[0]; ?></b></td>
+                    <td><?php echo $d[1]; ?></td>
                     <td><a href="?del_key=<?php echo $d[0]; ?>" style="color:var(--s); text-decoration:none; font-weight:bold;">✕</a></td>
                 </tr>
                 <?php endforeach; ?>
             </table>
         <?php endif; ?>
     </div>
-
     <?php if(isset($_GET['logout'])) { session_destroy(); header("Location: /"); } ?>
 </body>
 </html>
