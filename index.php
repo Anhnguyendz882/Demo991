@@ -7,7 +7,7 @@
 session_start();
 error_reporting(0);
 date_default_timezone_set('Asia/Ho_Chi_Minh');
-$DB_FILE = "kn_database.txt";
+$DB_FILE = "database.txt";
 $ADMIN_PASS = "Anhnguyendz_99";
 if (!file_exists($DB_FILE)) touch($DB_FILE);
 
