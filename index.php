@@ -1,38 +1,135 @@
 <?php
 session_start();
+date_default_timezone_set("Asia/Ho_Chi_Minh");
 
-$ADMIN_PASS = "123456"; // mật khẩu admin
-$DB = "database.txt";
+$ADMIN_PASS = "123456";
+$DB_FILE = "database.txt";
 
-if(!file_exists($DB)) file_put_contents($DB,"");
+if(!file_exists($DB_FILE)) file_put_contents($DB_FILE,"");
 
-/* ================= API CHECK KEY ================= */
+
+
+/* =========================
+   API CHECK KEY + TRẢ SCRIPT
+========================= */
 if(isset($_GET['check_key'])){
     $key = trim($_GET['check_key']);
-    $ip = $_SERVER['REMOTE_ADDR'];
-    $today = date("d/m/Y");
+    $ip  = $_SERVER['REMOTE_ADDR'];
 
-    $lines = file($DB, FILE_IGNORE_NEW_LINES);
+    $lines = file($DB_FILE, FILE_IGNORE_NEW_LINES);
 
     foreach($lines as $i=>$line){
-        $p = explode("|",$line);
-        $k = $p[0] ?? '';
-        $exp = $p[1] ?? '';
-        $saved_ip = $p[2] ?? '-';
+        list($k,$created,$saved_ip) = array_pad(explode("|",$line),3,'');
 
         if($k === $key){
 
-            if(strtotime(str_replace("/","-",$exp)) < strtotime($today)){
-                echo "KEY_EXPIRED";
-                exit;
+            if($saved_ip == '-'){
+                $lines[$i] = "$k|$created|$ip";
+                file_put_contents($DB_FILE, implode("\n",$lines));
             }
 
-            if($saved_ip == '-' ){
-                $lines[$i] = "$k|$exp|$ip";
-                file_put_contents($DB, implode("\n",$lines));
-            }
+            header("Content-Type:text/plain");
 
-            echo "AUTH_SUCCESS";
+            echo "AUTH_SUCCESS|\n";
+
+?>
+script_name("AutoWalk AutoY")
+script_author("ChatGPT")
+
+require "lib.moonloader"
+local imgui = require "mimgui"
+
+local spamTime = 1500
+local show = imgui.new.bool(true)
+local running = false
+local points = {}
+local idx = 1
+
+function sendY()
+    local playerId = select(2, sampGetPlayerIdByCharHandle(PLAYER_PED))
+    local memPtr = allocateMemory(68)
+    sampStorePlayerOnfootData(playerId, memPtr)
+    setStructElement(memPtr, 36, 1, 64, false)
+    sampSendOnfootData(memPtr)
+    freeMemory(memPtr)
+end
+
+local function walk(p)
+    local x,y,z=getCharCoordinates(PLAYER_PED)
+    local dx=p[1]-x
+    local dy=p[2]-y
+    local dist=math.sqrt(dx*dx+dy*dy)
+
+    if dist>1.2 then
+        local heading=math.deg(math.atan2(-dx,dy))
+        setCharHeading(PLAYER_PED,heading)
+        setGameKeyState(1,255)
+        return false
+    else
+        setGameKeyState(1,0)
+        return true
+    end
+end
+
+imgui.OnFrame(function() return show[0] end,
+function()
+    imgui.Begin("AutoWalk AutoY", show)
+
+    imgui.Text("Points: "..#points)
+    imgui.Text("Current: "..idx)
+    imgui.Text(running and "RUNNING" or "STOPPED")
+
+    if imgui.Button("Add Point") then
+        local x,y,z=getCharCoordinates(PLAYER_PED)
+        table.insert(points,{x,y,z})
+    end
+
+    if imgui.Button("START") then
+        if #points>0 then
+            running=true
+            idx=1
+        end
+    end
+
+    if imgui.Button("STOP") then
+        running=false
+        setGameKeyState(1,0)
+    end
+
+    if imgui.Button("CLEAR") then
+        points={}
+    end
+
+    imgui.End()
+end)
+
+function main()
+    repeat wait(0) until isSampAvailable()
+
+    sampRegisterChatCommand("awui", function()
+        show[0]=not show[0]
+    end)
+
+    while true do
+        wait(0)
+
+        if running and #points>0 then
+            local p=points[idx]
+
+            if walk(p) then
+                local t=os.clock()
+                while os.clock()-t < spamTime/1000 do
+                    sendY()
+                    wait(120)
+                end
+
+                idx = idx + 1
+                if idx > #points then idx = 1 end
+            end
+        end
+    end
+end
+<?php
             exit;
         }
     }
@@ -41,7 +138,11 @@ if(isset($_GET['check_key'])){
     exit;
 }
 
-/* ================= LOGIN ================= */
+
+
+/* =========================
+   LOGIN ADMIN
+========================= */
 if(isset($_POST['login'])){
     if($_POST['pass'] === $ADMIN_PASS){
         $_SESSION['admin'] = true;
@@ -50,165 +151,61 @@ if(isset($_POST['login'])){
 
 if(isset($_GET['logout'])){
     session_destroy();
-    header("Location: index.php");
+    header("Location:index.php");
     exit;
 }
 
-/* ================= CREATE KEY ================= */
+
+
+/* =========================
+   TẠO KEY
+========================= */
 if(isset($_POST['create'])){
-    $days = intval($_POST['days']);
-    if($days <= 0) $days = 30;
+    $key = strtoupper(substr(md5(uniqid()),0,12));
+    $created = date("d/m/Y H:i");
 
-    $key = strtoupper(substr(md5(time().rand()),0,12));
-    $expire = date("d/m/Y", strtotime("+$days days"));
-
-    file_put_contents($DB,"$key|$expire|-\n", FILE_APPEND);
+    file_put_contents($DB_FILE,"$key|$created|-\n", FILE_APPEND);
 }
 
-/* ================= DELETE ================= */
-if(isset($_GET['del'])){
-    $del = $_GET['del'];
-    $lines = file($DB, FILE_IGNORE_NEW_LINES);
-    $new=[];
+
+
+/* =========================
+   XOÁ KEY
+========================= */
+if(isset($_GET['delete'])){
+    $delete = $_GET['delete'];
+    $lines = file($DB_FILE, FILE_IGNORE_NEW_LINES);
+    $new = [];
 
     foreach($lines as $l){
-        if(strpos($l,$del) === false) $new[]=$l;
+        if(strpos($l,$delete) === false){
+            $new[] = $l;
+        }
     }
 
-    file_put_contents($DB, implode("\n",$new));
-    header("Location: index.php");
+    file_put_contents($DB_FILE, implode("\n",$new));
+    header("Location:index.php");
     exit;
 }
 
-$rows = file($DB, FILE_IGNORE_NEW_LINES);
+$rows = file($DB_FILE, FILE_IGNORE_NEW_LINES);
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>BLACK CAT KEY SYSTEM</title>
-
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BLACK CAT PANEL</title>
 <style>
-body{
-margin:0;
-font-family:Segoe UI;
-background:radial-gradient(circle at top,#020617,#000);
-color:white;
-}
-
-/* glass card */
-.card{
-width:380px;
-max-width:95%;
-margin:50px auto;
-padding:28px;
-border-radius:22px;
-background:rgba(15,23,42,.75);
-backdrop-filter: blur(14px);
-box-shadow:0 0 50px rgba(0,255,255,.15);
-border:1px solid rgba(255,255,255,.05);
-text-align:center;
-}
-
-/* avatar */
-.avatar{
-width:90px;
-height:90px;
-border-radius:50%;
-margin:auto;
-background:url('https://i.imgur.com/8Km9tLL.png') center/cover;
-box-shadow:0 0 25px #22d3ee;
-}
-
-h1{
-margin:12px 0 0;
-font-size:22px;
-letter-spacing:2px;
-}
-
-.status{
-color:#22d3ee;
-font-size:13px;
-margin-bottom:20px;
-}
-
-/* inputs */
-input{
-width:100%;
-padding:13px;
-border-radius:12px;
-border:1px solid rgba(34,211,238,.25);
-background:#020617;
-color:white;
-margin-bottom:14px;
-font-size:15px;
-outline:none;
-}
-
-/* button */
-button{
-width:100%;
-padding:13px;
-border-radius:14px;
-border:none;
-font-weight:bold;
-font-size:15px;
-background:linear-gradient(90deg,#06b6d4,#9333ea);
-color:white;
-cursor:pointer;
-transition:.2s;
-}
-
-button:hover{
-transform:scale(1.03);
-box-shadow:0 0 18px rgba(147,51,234,.6);
-}
-
-/* table */
-table{
-width:100%;
-border-collapse:collapse;
-margin-top:18px;
-}
-
-th{
-color:#22d3ee;
-font-size:12px;
-padding:8px;
-border-bottom:1px solid rgba(34,211,238,.3);
-}
-
-td{
-padding:8px;
-font-size:12px;
-border-bottom:1px solid rgba(255,255,255,.06);
-}
-
-.key{
-color:#67e8f9;
-font-weight:bold;
-letter-spacing:1px;
-}
-
-.del{
-color:#ef4444;
-text-decoration:none;
-font-weight:bold;
-}
-
-.logout{
-display:inline-block;
-margin-top:16px;
-color:#22d3ee;
-text-decoration:none;
-font-size:13px;
-}
-
-.copy{
-cursor:pointer;
-}
+body{margin:0;font-family:Segoe UI;background:#020617;color:#fff}
+.card{width:380px;max-width:95%;margin:40px auto;padding:25px;border-radius:20px;background:#0f172a;text-align:center;box-shadow:0 0 40px rgba(0,255,255,.15)}
+input,button{width:100%;padding:12px;border-radius:12px;border:none;margin-top:10px}
+button{background:#06b6d4;color:#000;font-weight:bold;cursor:pointer}
+table{width:100%;margin-top:15px;border-collapse:collapse}
+td,th{padding:6px;border-bottom:1px solid #222;font-size:12px}
+.key{color:#22d3ee;font-weight:bold}
+.del{color:red;text-decoration:none}
 </style>
 </head>
 <body>
@@ -216,10 +213,7 @@ cursor:pointer;
 <?php if(!isset($_SESSION['admin'])): ?>
 
 <div class="card">
-<div class="avatar"></div>
-<h1>ADMIN PANEL</h1>
-<div class="status">SECURE LOGIN</div>
-
+<h2>ADMIN LOGIN</h2>
 <form method="post">
 <input type="password" name="pass" placeholder="Password">
 <button name="login">LOGIN</button>
@@ -229,51 +223,30 @@ cursor:pointer;
 <?php else: ?>
 
 <div class="card">
-
-<div class="avatar"></div>
-<h1>BOSS KN</h1>
-<div class="status">SYSTEM ONLINE</div>
+<h2>KEY PANEL</h2>
 
 <form method="post">
-<input name="days" placeholder="Số ngày sử dụng">
 <button name="create">TẠO KEY</button>
 </form>
 
 <table>
-<tr>
-<th>KEY</th>
-<th>HẾT HẠN</th>
-<th>IP</th>
-<th>XÓA</th>
-</tr>
+<tr><th>KEY</th><th>TẠO LÚC</th><th>IP</th><th>XÓA</th></tr>
 
 <?php foreach($rows as $r):
-$p=explode("|",$r);
-$key=$p[0] ?? '';
-$exp=$p[1] ?? '';
-$ip=$p[2] ?? '-';
+list($k,$c,$ip)=array_pad(explode("|",$r),3,'');
 ?>
-
 <tr>
-<td class="key copy" onclick="copyKey('<?=$key?>')"><?=$key?></td>
-<td><?=$exp?></td>
+<td class="key"><?=$k?></td>
+<td><?=$c?></td>
 <td><?=$ip?></td>
-<td><a class="del" href="?del=<?=$key?>">✖</a></td>
+<td><a class="del" href="?delete=<?=$k?>">X</a></td>
 </tr>
-
 <?php endforeach; ?>
+
 </table>
 
-<a class="logout" href="?logout">LOGOUT</a>
-
+<a href="?logout">LOGOUT</a>
 </div>
-
-<script>
-function copyKey(k){
-navigator.clipboard.writeText(k);
-alert("Đã copy key!");
-}
-</script>
 
 <?php endif; ?>
 
