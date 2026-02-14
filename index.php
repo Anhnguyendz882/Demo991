@@ -1,146 +1,254 @@
 <?php
-/**
- * 👑 PROJECT: KN BALLAS CAT EDITION (V5000)
- * 👤 BOSS: KN (ANH NGUYEN)
- * 🛰️ MODULE: MASTER KEY + CAT BIO + FULL LUA AUTOWALK
- */
-
 session_start();
-error_reporting(0);
 date_default_timezone_set('Asia/Ho_Chi_Minh');
 
-// CẤU HÌNH DUY NHẤT
-$MASTER_KEY = "Anhnguyendz_99"; 
-$LOG_FILE = "kn_ip_logs.txt"; 
+/* ========= CONFIG ========= */
 
-if (isset($_GET['check_key'])) {
-    $k = trim($_GET['check_key']);
-    $ip = $_SERVER['REMOTE_ADDR'];
-    if ($k !== $MASTER_KEY) { die("NOT_FOUND"); }
-    file_put_contents($LOG_FILE, $ip . " | " . date("H:i:s d/m/Y") . "\n", FILE_APPEND);
-    header('Content-Type: text/plain');
-    echo "AUTH_SUCCESS|"; 
+$MASTER_HASH = '$2y$10$R0knvZ8sE9KxC1p6Rz7lV.pW0vX8Y3v5QxV3FQJk2ZcZCzS3E6N3K'; 
+$DB_FILE = "keys.json";
+
+if(!file_exists($DB_FILE)){
+ file_put_contents($DB_FILE,json_encode([],JSON_PRETTY_PRINT));
+}
+
+function loadKeys(){
+ global $DB_FILE;
+ return json_decode(file_get_contents($DB_FILE),true);
+}
+
+function saveKeys($k){
+ global $DB_FILE;
+ file_put_contents($DB_FILE,json_encode($k,JSON_PRETTY_PRINT));
+}
+
+/* ========= API CHECK ========= */
+
+if(isset($_GET['api']) && $_GET['api']=="check"){
+ $key=strtoupper(trim($_GET['key']??''));
+ $ip=$_SERVER['REMOTE_ADDR'];
+ $keys=loadKeys();
+
+ if(!isset($keys[$key])) die("INVALID");
+
+ if(time()>$keys[$key]['expire']) die("EXPIRED");
+
+ if($keys[$key]['ip']==""){
+  $keys[$key]['ip']=$ip;
+  saveKeys($keys);
+ }
+
+ if($keys[$key]['ip']!==$ip) die("IP_LOCK");
+
+ $left=$keys[$key]['expire']-time();
+ die("VALID|$left");
+}
 ?>
--- [[ CODE AUTOWALK CỦA BOSS KN ]]
-script_name("AutoWalk AutoY")
-script_author("KN_BOSS")
-require "lib.moonloader"
-local imgui = require "mimgui"
-local spamTime = 1500 
-local show = imgui.new.bool(true)
-local running = false
-local points = {}
-local idx = 1
-
-function sendY()
-    local playerId = select(2, sampGetPlayerIdByCharHandle(PLAYER_PED))
-    local memPtr = allocateMemory(68)
-    sampStorePlayerOnfootData(playerId, memPtr)
-    setStructElement(memPtr, 36, 1, 64, false)
-    sampSendOnfootData(memPtr)
-    freeMemory(memPtr)
-end
-
-function main()
-    repeat wait(0) until isSampAvailable()
-    while true do
-        wait(0)
-        if running and #points>0 then
-            local p=points[idx]
-            local x,y,z=getCharCoordinates(PLAYER_PED)
-            local dx,dy = p[1]-x, p[2]-y
-            if math.sqrt(dx*dx+dy*dy)>1.2 then
-                setCharHeading(PLAYER_PED, math.deg(math.atan2(-dx,dy)))
-                setGameKeyState(1,255)
-            else
-                setGameKeyState(1,0)
-                local t=os.clock()
-                while os.clock()-t < spamTime/1000 do sendY(); wait(120) end
-                idx = (idx % #points) + 1
-            end
-        end
-    end
-end
-<?php exit; } ?>
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <title>KN BOSS | CAT SYSTEM</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root { --p: #00ffd5; --s: #ff00c1; }
-        * { margin:0; padding:0; box-sizing:border-box; font-family: 'Lexend', sans-serif; cursor: none; }
-        body { background: #000; height: 100vh; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-        canvas { position: fixed; inset: 0; z-index: -1; }
-        #bg-v { position: fixed; inset: 0; min-width: 100%; min-height: 100%; z-index: -2; object-fit: cover; filter: brightness(0.2); }
-        .glass { width: 380px; padding: 40px; border-radius: 40px; background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(25px); border: 1px solid var(--p); text-align: center; position: relative; box-shadow: 0 0 40px rgba(0,255,213,0.2); }
-        .glitch { font-size: 30px; font-weight: 900; color: #fff; text-transform: uppercase; letter-spacing: 5px; text-shadow: 2px 2px var(--s); }
-        input { width: 100%; padding: 15px; background: rgba(0,0,0,0.8); border: 1px solid #222; border-radius: 12px; color: var(--p); text-align: center; margin: 20px 0; outline: none; border-left: 5px solid var(--p); }
-        .btn { width: 100%; padding: 16px; border-radius: 12px; border: none; background: linear-gradient(45deg, var(--p), var(--s)); color: #000; font-weight: 900; cursor: pointer; transition: 0.3s; }
-        .btn:hover { transform: scale(1.05); box-shadow: 0 0 20px var(--p); }
-        #cur { width: 10px; height: 10px; background: var(--p); border-radius: 50%; position: fixed; pointer-events: none; z-index: 10000; box-shadow: 0 0 10px var(--p); }
-        .avatar { width: 120px; height: 120px; border-radius: 50%; border: 3px solid var(--p); padding: 5px; margin-bottom: 15px; animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0,255,213,0.4); } 70% { box-shadow: 0 0 0 20px rgba(0,255,213,0); } 100% { box-shadow: 0 0 0 0 rgba(0,255,213,0); } }
-    </style>
+<meta charset="UTF-8">
+<title>KN LOADER</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
+
+<style>
+body{
+ margin:0;
+ background:#000;
+ color:#00ffd5;
+ font-family:Orbitron;
+ overflow:hidden;
+}
+
+/* particles canvas */
+canvas{
+ position:fixed;
+ inset:0;
+ z-index:-1;
+}
+
+/* login */
+#loginBox{
+ position:absolute;
+ top:50%;
+ left:50%;
+ transform:translate(-50%,-50%);
+ text-align:center;
+}
+
+input{
+ padding:14px;
+ border-radius:8px;
+ border:none;
+ width:260px;
+ text-align:center;
+ background:#111;
+ color:#00ffd5;
+}
+
+button{
+ padding:12px 30px;
+ border:none;
+ border-radius:30px;
+ background:#00ffd5;
+ color:#000;
+ font-weight:bold;
+ cursor:pointer;
+ margin-top:15px;
+}
+
+/* loader bio */
+
+#bioLoader{
+ display:none;
+ text-align:center;
+ animation:fade .6s ease;
+}
+
+@keyframes fade{from{opacity:0}to{opacity:1}}
+
+.avatar{
+ width:130px;
+ height:130px;
+ border-radius:50%;
+ border:3px solid #00ffd5;
+ box-shadow:0 0 35px #00ffd5;
+ margin-top:80px;
+}
+
+.glitch{
+ font-size:32px;
+ margin-top:15px;
+ position:relative;
+}
+.glitch:after{
+ content:attr(data-text);
+ position:absolute;
+ left:2px;
+ top:2px;
+ color:#ff00c8;
+ z-index:-1;
+}
+
+.btnBio{
+ margin:8px;
+ padding:12px 25px;
+ border-radius:30px;
+ border:1px solid #00ffd5;
+ background:transparent;
+ color:#00ffd5;
+ cursor:pointer;
+ transition:.2s;
+}
+.btnBio:hover{
+ background:#00ffd5;
+ color:#000;
+ box-shadow:0 0 15px #00ffd5;
+}
+
+#timeLeft{
+ margin-top:10px;
+ opacity:.7;
+}
+</style>
 </head>
 <body>
-    <div id="cur"></div>
-    <canvas id="snow"></canvas>
-    <video id="bg-v" autoplay loop muted playsinline><source src="bg.mp4" type="video/mp4"></video>
-    <audio id="bg-m" loop src="myhome.mp3"></audio>
 
-    <div class="glass">
-        <div id="login-ui">
-            <div class="glitch">KN BALLAS</div>
-            <p style="font-size: 10px; color: var(--p); opacity: 0.6; margin-top: 5px;">MASTER AUTHENTICATION</p>
-            <input type="password" id="mk" placeholder="NHẬP MASTER KEY...">
-            <button class="btn" onclick="go()">UNLOCK SYSTEM</button>
-        </div>
+<canvas id="particles"></canvas>
 
-        <div id="bio-ui" style="display:none;">
-            <img src="https://i.ibb.co/ynM5RCLc/avatar.jpg" class="avatar">
-            <h2 style="color:#fff; letter-spacing: 2px;">BOSS KN</h2>
-            <p style="font-size: 10px; color: var(--p); letter-spacing: 5px;">ACCESS GRANTED</p>
-            <div style="margin-top:25px; display:flex; justify-content:center; gap:25px; font-size: 22px; color: #fff;">
-                <i class="fab fa-discord"></i> <i class="fab fa-youtube"></i> <i class="fab fa-spotify"></i>
-            </div>
-            <p style="margin-top:20px; font-size: 11px; color: #555;">Status: Online & Working</p>
-        </div>
-    </div>
+<div id="loginBox">
+ <h2>ENTER ACCESS KEY</h2>
+ <input id="keyInput" placeholder="ENTER KEY">
+ <br>
+ <button onclick="loginKey()">UNLOCK</button>
+</div>
 
-    <script>
-        document.onmousemove = (e) => { const c=document.getElementById('cur'); c.style.left=e.clientX+'px'; c.style.top=e.clientY+'px'; }
-        
-        async function go() {
-            const key = document.getElementById('mk').value;
-            if (key === "<?php echo $MASTER_KEY; ?>") {
-                document.getElementById('login-ui').style.display = 'none';
-                document.getElementById('bio-ui').style.display = 'block';
-                document.getElementById('bg-m').play();
-            } else { alert("SAI KEY RỒI THẰNG LỒN!"); }
-        }
+<div id="bioLoader">
+ <img src="https://i.imgur.com/2yaf2wb.png" class="avatar">
+ <div class="glitch" data-text="KN BOSS">KN BOSS</div>
+ <p>Premium Loader Access</p>
+ <div id="timeLeft"></div>
 
-        // Hiệu ứng hạt tuyết cho đẹp
-        const canvas = document.getElementById('snow');
-        const ctx = canvas.getContext('2d');
-        let particles = [];
-        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-        function create() {
-            for(let i=0; i<50; i++) particles.push({x:Math.random()*canvas.width, y:Math.random()*canvas.height, r:Math.random()*2+1, d:Math.random()*1});
-        }
-        function draw() {
-            ctx.clearRect(0,0,canvas.width, canvas.height);
-            ctx.fillStyle = "rgba(0, 255, 213, 0.3)";
-            ctx.beginPath();
-            for(let p of particles) {
-                ctx.moveTo(p.x, p.y); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
-                p.y += p.d; if(p.y > canvas.height) p.y = -10;
-            }
-            ctx.fill(); requestAnimationFrame(draw);
-        }
-        create(); draw();
-    </script>
+ <button class="btnBio" onclick="copyKey()">COPY KEY</button>
+ <button class="btnBio" onclick="window.open('https://discord.com')">DISCORD</button>
+ <button class="btnBio" onclick="window.open('https://youtube.com')">YOUTUBE</button>
+</div>
+
+<script>
+
+/* LOGIN */
+
+async function loginKey(){
+ const key=document.getElementById("keyInput").value;
+
+ const res=await fetch("?api=check&key="+key);
+ const txt=await res.text();
+
+ if(txt.startsWith("VALID")){
+  document.getElementById("loginBox").style.display="none";
+  document.getElementById("bioLoader").style.display="block";
+
+  const sec=txt.split("|")[1];
+  startTimer(sec);
+
+  window.savedKey=key;
+ }
+ else if(txt==="IP_LOCK"){alert("Key locked IP");}
+ else if(txt==="EXPIRED"){alert("Key expired");}
+ else{alert("Invalid key");}
+}
+
+function copyKey(){
+ navigator.clipboard.writeText(window.savedKey);
+ alert("Copied!");
+}
+
+/* TIMER */
+
+function startTimer(sec){
+ setInterval(()=>{
+  sec--;
+  if(sec<=0) location.reload();
+  let h=Math.floor(sec/3600);
+  let m=Math.floor((sec%3600)/60);
+  let s=sec%60;
+  document.getElementById("timeLeft").innerText=
+   "Expire in: "+h+"h "+m+"m "+s+"s";
+ },1000);
+}
+
+/* PARTICLES BACKGROUND */
+
+const canvas=document.getElementById("particles");
+const ctx=canvas.getContext("2d");
+canvas.width=innerWidth;
+canvas.height=innerHeight;
+
+let parts=[];
+for(let i=0;i<80;i++){
+ parts.push({
+  x:Math.random()*canvas.width,
+  y:Math.random()*canvas.height,
+  r:Math.random()*2+1,
+  d:Math.random()*1
+ });
+}
+
+function draw(){
+ ctx.clearRect(0,0,canvas.width,canvas.height);
+ ctx.fillStyle="rgba(0,255,213,0.3)";
+ ctx.beginPath();
+ for(let p of parts){
+  ctx.moveTo(p.x,p.y);
+  ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+  p.y+=p.d;
+  if(p.y>canvas.height)p.y=0;
+ }
+ ctx.fill();
+ requestAnimationFrame(draw);
+}
+draw();
+
+</script>
 </body>
 </html>
